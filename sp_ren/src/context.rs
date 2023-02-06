@@ -25,9 +25,10 @@ pub struct GraphicsContext {
 impl GraphicsContext {
     pub async fn new(
         window: &winit::window::Window,
-        size: UVec2,
         backends: Option<wgpu::Backends>,
     ) -> Self {
+        let size = UVec2::new(window.inner_size().width, window.inner_size().height);
+
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
         let backends = backends.unwrap_or_else(default_backends);
