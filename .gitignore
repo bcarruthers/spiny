@@ -12,6 +12,7 @@ Cargo.lock
 
 # Temporary files
 **/.DS_Store
+assets.zip
 
 # fyrox
 **/test_output
