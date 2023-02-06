@@ -11,15 +11,7 @@ Cargo.lock
 **/*.rs.bk
 
 # Temporary files
-/scratch/
-/captures**
-assets.zip
-config.json
-output.log
 **/.DS_Store
-
-# Generated files
-#/assets/sounds
 
 # fyrox
 **/test_output
