@@ -4,6 +4,8 @@ use glam::Mat4;
 pub struct CameraParams {
     pub view: Mat4,
     pub proj: Mat4,
+    pub fog_color: [f32; 4],
+    pub fog_depth: f32,
 }
 
 impl Default for CameraParams {
@@ -11,6 +13,8 @@ impl Default for CameraParams {
         Self {
             view: Mat4::IDENTITY,
             proj: Mat4::IDENTITY,
+            fog_color: [0.025, 0.05, 0.1, 1.0],
+            fog_depth: 0.0,
         }
     }
 }

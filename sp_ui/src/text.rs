@@ -377,6 +377,7 @@ impl Font {
             },
         )
     }
+    
     pub fn measure_block_chars(&self, chars: &[char], block: &TextBlock) -> IRange2 {
         let max_allowed_width = block
             .wrap

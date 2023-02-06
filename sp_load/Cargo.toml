@@ -1,0 +1,18 @@
+[package]
+name = "sp_load"
+version = "0.0.0"
+edition = "2021"
+
+build = "src/build.rs"
+
+[dependencies]
+glam = { version = "0.20.2" }
+log = "0.4.14"
+zip = { version = "0.5.13", default-features = false, features = [] }
+walkdir = "2"
+
+sp_asset = { path = "../../spiny/sp_asset", version = "0.0.0" }
+
+[build-dependencies]
+zip = { version = "0.5.13", default-features = false, features = [] }
+walkdir = "2"

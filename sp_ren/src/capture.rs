@@ -4,6 +4,37 @@ pub struct CaptureImage {
     pub pixels: Vec<u8>,
 }
 
+impl CaptureImage {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn save(&self, name: &str) {
+        use chrono::Local;
+        use image::ImageEncoder;
+        use std::fs::File;
+
+        let timestamp = Local::now().format("%Y%m%d-%H%M%S-%3f").to_string();
+        let folder = "captures";
+        let output_path = format!("{}/{}-{}.png", folder, name, timestamp);
+        log::info!("Saving screen capture to {:?}", &output_path);
+        std::fs::create_dir_all(&folder)
+            .expect(&format!("Could not create folder {:?}", &folder));
+        let file = File::create(&output_path)
+            .expect(&format!("Could not open {:?}", &output_path));
+        let encoder = image::codecs::png::PngEncoder::new(file);
+        encoder
+            .write_image(
+                &self.pixels,
+                self.width as u32,
+                self.height as u32,
+                image::ColorType::Rgba8,
+            )
+            .expect("Could not write PNG");
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn save(data: sp_ren::CaptureImage) {
+    }
+}
+
 struct BufferDimensions {
     width: usize,
     height: usize,
