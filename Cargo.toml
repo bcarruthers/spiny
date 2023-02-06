@@ -1,0 +1,19 @@
+[workspace]
+members = ["crates/*"]
+resolver = "2"
+
+[profile.dev]
+opt-level = 1   # Do slight optimization
+
+[profile.test]
+opt-level = 1   # Do slight optimization
+
+[profile.release]
+opt-level = 3
+lto = true      # Link time optimization
+codegen-units = 1
+strip = false    # Strip symbols from the binary
+
+#[profile.release.package.orb_wasm]
+# Tell `rustc` to optimize for small code size.
+#opt-level = "s"

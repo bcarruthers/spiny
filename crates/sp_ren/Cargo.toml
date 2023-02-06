@@ -1,0 +1,20 @@
+[package]
+name = "sp_ren"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+glam = { version = "0.20.2" }
+indexmap = { version = "1.9.1" }
+pollster = "0.2.5"
+image = { version = "0.24.0", default-features = false, features = ["png"] }
+wgpu = { version = "0.14.0", features = [ "webgl" ] }
+winit = { version = "0.27.3", features = ["serde"] }
+bytemuck = { version = "1.7.3", features = [ "derive" ] }
+base64 = "0.13.0"
+log = "0.4.14"
+
+sp_math = { path = "../sp_math", version = "0.0.0" }
+sp_draw = { path = "../sp_draw", version = "0.0.0" }
+sp_asset = { path = "../sp_asset", version = "0.0.0" }
+sp_ui = { path = "../sp_ui", version = "0.0.0" }

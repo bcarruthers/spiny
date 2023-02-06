@@ -1,0 +1,9 @@
+[package]
+name = "sp_asset"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+zip = { version = "0.5.13", default-features = false, features = [] }
+thiserror = "1.0.30"
+log = "0.4.14"
