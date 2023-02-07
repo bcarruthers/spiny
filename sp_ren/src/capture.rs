@@ -31,7 +31,7 @@ impl CaptureImage {
     }
 
     #[cfg(target_arch = "wasm32")]
-    pub fn save(data: sp_ren::CaptureImage) {
+    pub fn save(&self, _name: &str) {
     }
 }
 

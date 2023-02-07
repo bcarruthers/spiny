@@ -3,7 +3,7 @@ use crate::window::WindowHandler;
 
 #[cfg(target_arch = "wasm32")]
 pub fn subscribe_clipboard_events<H: WindowHandler + 'static>(core: &Arc<Mutex<H>>) {
-    use winit::platform::web::WindowExtWebSys;
+    //use winit::platform::web::WindowExtWebSys;
     use wasm_bindgen::JsCast;
     let win = web_sys::window().expect("Could not get window");
 
