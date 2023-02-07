@@ -1,13 +1,12 @@
 [package]
-name = "sp_audio"
+name = "sp_sound"
 version = "0.0.0"
 edition = "2021"
 
 [dependencies]
 glam = { version = "0.20.2" }
 indexmap = { version = "1.9.1" }
-log = "0.4.14"
-fyrox-sound = "0.28.0"
+serde = { version = "1.0.136" }
+serde_derive = { version = "1.0.136" }
 
 sp_asset = { path = "../sp_asset", version = "0.0.0" }
-sp_sound = { path = "../sp_sound", version = "0.0.0" }

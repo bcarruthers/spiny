@@ -2,7 +2,6 @@ use glam::Vec3;
 use serde_derive::{Serialize, Deserialize};
 use sp_asset::AssetId;
 
-
 #[derive(Clone)]
 pub struct AudioListener {
     pub pos: Vec3,
@@ -16,6 +15,28 @@ impl Default for AudioListener {
             pos: Vec3::ZERO,
             look: Vec3::Z,
             up: Vec3::Y,
+        }
+    }
+}
+
+#[derive(Default, Clone)]
+pub struct SoundEffect {
+    pub sound_id: AssetId,
+    pub playback: SoundPlayback,
+    pub pitch_range: f32,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct AudioConfig {
+    pub sound_volume: i32,
+    pub music_volume: i32,
+}
+
+impl Default for AudioConfig {
+    fn default() -> Self {
+        Self {
+            sound_volume: 5,
+            music_volume: 5,
         }
     }
 }
@@ -47,24 +68,8 @@ impl Default for SoundPlayback {
     }
 }
 
-#[derive(Default, Clone)]
-pub struct SoundEffect {
-    pub sound_id: AssetId,
-    pub playback: SoundPlayback,
-    pub pitch_range: f32,
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct AudioConfig {
-    pub sound_volume: i32,
-    pub music_volume: i32,
-}
-
-impl Default for AudioConfig {
-    fn default() -> Self {
-        Self {
-            sound_volume: 5,
-            music_volume: 5,
-        }
-    }
+#[derive(Default)]
+pub struct AudioFrame {
+    pub listener: AudioListener,
+    pub sounds: Vec<SoundEffect>,
 }

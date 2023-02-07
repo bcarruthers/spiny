@@ -4,13 +4,7 @@ use winit::{
     event::*,
     event_loop::ControlFlow
 };
-
 use crate::clipboard::Clipboard;
-
-pub struct WindowDescriptor {
-    pub title: String,
-    pub size: UVec2,
-}
 
 pub struct WindowUpdateInput {
     pub time: i64,
@@ -25,8 +19,6 @@ pub struct WindowUpdateResult {
 }
 
 pub trait WindowHandler {
-    type HandlerCreateInfo;
-
     fn copy(&mut self) -> Option<String> {
         None
     }
@@ -50,15 +42,6 @@ pub trait WindowHandler {
             clipboard_data: None,
         }
     }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn sleep(sleep_duration: Duration) {
-    spin_sleep::sleep(sleep_duration);
-}
-
-#[cfg(target_arch = "wasm32")]
-fn sleep(_sleep_duration: Duration) {
 }
 
 fn handle_event<H: WindowHandler>(
@@ -134,7 +117,8 @@ fn handle_event<H: WindowHandler>(
             // let span = tracing::span!(tracing::Level::DEBUG, "fg_sleep");
             // let _enter = span.enter();
 
-            sleep(sleep_duration);
+            #[cfg(not(target_arch = "wasm32"))]
+            spin_sleep::sleep(sleep_duration);
 
             // match state.render() {
             //     Ok(_) => {}
@@ -155,93 +139,51 @@ fn handle_event<H: WindowHandler>(
     true
 }
 
-/// Runs window loop and processes all messages to graphics actor. Also
-/// sends its own input/window messages into graphics actor.
-pub struct WindowApp {
-    //backends: Option<wgpu::Backends>,
-    sleep_duration: Duration,
-    // assets: Arc<Mutex<FileArchive>>,
-    // config: AppConfig,
-    // app: AppInfo,
-}
+pub async fn run<H: 'static + WindowHandler>(
+    handler: Arc<Mutex<H>>,
+    window: Rc<winit::window::Window>,
+    event_loop: winit::event_loop::EventLoop<()>,
+    start: instant::Instant,
+    //enable_clipboard: bool,
+) {
+    let sleep_duration = Duration::from_millis(1);
+    let mut clipboard = Clipboard::new();
 
-impl WindowApp {
-    pub fn new(
-        //backends: Option<wgpu::Backends>,
-        //sleep_duration: Duration,
-        // assets: Arc<Mutex<FileArchive>>,
-        // config: AppConfig,
-        // app: AppInfo,
-    ) -> Self {
-        Self {
-            //backends,
-            sleep_duration: Duration::from_millis(1),
-            // assets,
-            // config,
-            // app,
-        }
+    // Set initial size/scale
+    log::debug!("Initializing core");
+    let size = UVec2::new(window.inner_size().width, window.inner_size().height);
+    {
+        let mut handler = handler.lock().unwrap();
+        handler.handle(sp_input::WindowEvent::Resized(size));
+        handler.handle(sp_input::WindowEvent::ScaleFactorChanged(window.scale_factor() as f32));
+        handler.handle(sp_input::WindowEvent::FullScreenChanged(window.fullscreen().is_some()));
     }
-
-    pub async fn run<H: 'static + WindowHandler>(
-        self,
-        handler: Arc<Mutex<H>>,
-        window: Rc<winit::window::Window>,
-        event_loop: winit::event_loop::EventLoop<()>,
-        start: instant::Instant,
-        //enable_clipboard: bool,
-    ) {
-        let mut clipboard = Clipboard::new();
-
-        // Set initial size/scale
-        log::debug!("Initializing core");
-        let size = UVec2::new(window.inner_size().width, window.inner_size().height);
-        {
-            let mut handler = handler.lock().unwrap();
-            handler.handle(sp_input::WindowEvent::Resized(size));
-            handler.handle(sp_input::WindowEvent::ScaleFactorChanged(window.scale_factor() as f32));
-            handler.handle(sp_input::WindowEvent::FullScreenChanged(window.fullscreen().is_some()));
-        }
-        // if enable_clipboard {
-        //     super::web::subscribe_clipboard_events(&handler);
-        // }
-
-        // Wait until this point to display to avoid white flash on Windows
-        window.set_visible(true);
-
-        // Run main loop
-        log::debug!("Starting main loop");
-        event_loop.run(move |event, _, control_flow| {
-            let time = (instant::Instant::now() - start).as_millis() as i64;
-            // Handle window event
-            let mut handler = handler.lock().unwrap();
-            let running = handle_event(
-                time,
-                &window,
-                event,
-                self.sleep_duration,
-                &mut clipboard,
-                handler.deref_mut(),
-            );
-            // Close if no longer running. Note we could also handle this as a message.
-            if !running {
-                // If left in fullscreen, the window won't close on MacOS
-                window.set_fullscreen(None);
-                *control_flow = ControlFlow::Exit;
-            }
-        });
-    }
-
-    // pub fn run<H: 'static + WindowHandler>(
-    //     self,
-    //     handler: H,
-    //     window: Rc<winit::window::Window>,
-    //     event_loop: winit::event_loop::EventLoop<()>,
-    //     start: instant::Instant,
-    // ) {
-    //     let future = self.run_async::<H>(handler, window, event_loop, start);
-    //     #[cfg(not(target_arch = "wasm32"))]
-    //     pollster::block_on(future);
-    //     #[cfg(target_arch = "wasm32")]
-    //     wasm_bindgen_futures::spawn_local(future);
+    // if enable_clipboard {
+    //     super::web::subscribe_clipboard_events(&handler);
     // }
+
+    // Wait until this point to display to avoid white flash on Windows
+    window.set_visible(true);
+
+    // Run main loop
+    log::debug!("Starting main loop");
+    event_loop.run(move |event, _, control_flow| {
+        let time = (instant::Instant::now() - start).as_millis() as i64;
+        // Handle window event
+        let mut handler = handler.lock().unwrap();
+        let running = handle_event(
+            time,
+            &window,
+            event,
+            sleep_duration,
+            &mut clipboard,
+            handler.deref_mut(),
+        );
+        // Close if no longer running. Note we could also handle this as a message.
+        if !running {
+            // If left in fullscreen, the window won't close on MacOS
+            window.set_fullscreen(None);
+            *control_flow = ControlFlow::Exit;
+        }
+    });
 }

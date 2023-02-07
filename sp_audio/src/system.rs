@@ -4,7 +4,8 @@ use std::{
 };
 
 use sp_asset::archive::FileArchive;
-use crate::{AudioEngine, SoundCache, SoundEffect, AudioListener, AudioConfig};
+use sp_sound::{AudioConfig, AudioListener, SoundEffect, AudioFrame};
+use crate::{AudioEngine, SoundCache};
 
 pub struct AudioSystem {
     engine: Option<AudioEngine>,
@@ -64,6 +65,15 @@ impl AudioSystem {
                 play.playback.max_radius,
                 play.playback.rolloff,
             );
+        }
+    }
+
+    pub fn handle(&mut self, frame: AudioFrame) {
+        if !frame.sounds.is_empty() {
+            self.set_listener(frame.listener);
+            for play in frame.sounds.iter() {
+                self.play_sound(play);
+            }
         }
     }
 }
