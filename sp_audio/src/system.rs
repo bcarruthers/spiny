@@ -15,6 +15,7 @@ pub struct AudioSystem {
 
 impl AudioSystem {
     pub fn new(assets: Arc<Mutex<FileArchive>>) -> Self {
+        log::debug!("Loading audio");
         let mut assets = assets.lock().unwrap();
         let paths = assets
             .files_in(Path::new("sounds"))

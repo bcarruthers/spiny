@@ -167,6 +167,7 @@ pub struct Camera {
 
 #[derive(Default)]
 pub struct DrawOutput {
+    pub clear_color: Rgba,
     pub cameras: Vec<Camera>,
     pub sprites: SpriteBatches,
 }

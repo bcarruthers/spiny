@@ -13,6 +13,7 @@ pub mod mipmap;
 pub mod msaa;
 pub mod pack;
 pub mod quad;
+pub mod ren2d;
 pub mod shader;
 pub mod sprite;
 pub mod text;

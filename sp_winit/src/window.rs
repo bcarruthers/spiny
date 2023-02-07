@@ -44,6 +44,15 @@ pub trait WindowHandler {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+fn sleep(sleep_duration: Duration) {
+    spin_sleep::sleep(sleep_duration);
+}
+
+#[cfg(target_arch = "wasm32")]
+fn sleep(_sleep_duration: Duration) {
+}
+
 fn handle_event<H: WindowHandler>(
     time: i64,
     window: &winit::window::Window,
@@ -117,8 +126,7 @@ fn handle_event<H: WindowHandler>(
             // let span = tracing::span!(tracing::Level::DEBUG, "fg_sleep");
             // let _enter = span.enter();
 
-            #[cfg(not(target_arch = "wasm32"))]
-            spin_sleep::sleep(sleep_duration);
+            sleep(sleep_duration);
 
             // match state.render() {
             //     Ok(_) => {}
