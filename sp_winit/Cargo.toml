@@ -6,5 +6,6 @@ edition = "2021"
 [dependencies]
 glam = { version = "0.20.2" }
 winit = { version = "0.27.3" }
+log = "0.4.14"
 
 sp_input = { path = "../sp_input", version = "0.0.0" }
