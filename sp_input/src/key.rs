@@ -217,17 +217,17 @@ pub enum KeyCode {
 impl KeyCode {
     fn try_to_str(&self) -> Option<&str> {
         match self {
-            // KeyCode::Key1 => Some("1"),
-            // KeyCode::Key2 => Some("2"),
-            // KeyCode::Key3 => Some("3"),
-            // KeyCode::Key4 => Some("4"),
-            // KeyCode::Key5 => Some("5"),
-            // KeyCode::Key6 => Some("6"),
-            // KeyCode::Key7 => Some("7"),
-            // KeyCode::Key8 => Some("8"),
-            // KeyCode::Key9 => Some("9"),
-            // KeyCode::Key0 => Some("0"),
-            // KeyCode::Escape => Some("Esc"),
+            KeyCode::Key1 => Some("1"),
+            KeyCode::Key2 => Some("2"),
+            KeyCode::Key3 => Some("3"),
+            KeyCode::Key4 => Some("4"),
+            KeyCode::Key5 => Some("5"),
+            KeyCode::Key6 => Some("6"),
+            KeyCode::Key7 => Some("7"),
+            KeyCode::Key8 => Some("8"),
+            KeyCode::Key9 => Some("9"),
+            KeyCode::Key0 => Some("0"),
+            KeyCode::Escape => Some("ESC"),
             _ => None
         }
     }

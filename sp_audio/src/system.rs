@@ -28,12 +28,19 @@ impl AudioSystem {
         }
     }
 
+    fn update_from_config(&mut self) {
+        if let Some(engine) = &mut self.engine {
+            engine.set_master_gain(self.config.sound_volume as f32 / 10.0);
+        }
+    }
+
     pub fn enable(&mut self) {
         // Browsers require user interaction before audio can play, so we
         // deferring engine creation until the first audio frame, which
         // presumably happens as a result of user interaction
         if self.engine.is_none() {
             self.engine = Some(AudioEngine::new());
+            self.update_from_config();
         }
     }
 
@@ -43,10 +50,14 @@ impl AudioSystem {
         self.enable();
     }
 
+    pub fn set_config(&mut self, config: AudioConfig) {
+        self.config = config;
+        self.update_from_config();
+    }
+
     pub fn set_listener(&mut self, listener: AudioListener) {
         self.enable_on_demand();
         if let Some(engine) = &mut self.engine {
-            engine.set_master_gain(self.config.sound_volume as f32 / 10.0);
             engine.set_position(listener.pos);
             engine.set_orientation(listener.look, listener.up);
         }
