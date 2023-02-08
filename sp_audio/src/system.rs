@@ -39,6 +39,7 @@ impl AudioSystem {
         // deferring engine creation until the first audio frame, which
         // presumably happens as a result of user interaction
         if self.engine.is_none() {
+            log::debug!("Enabling audio");
             self.engine = Some(AudioEngine::new());
             self.update_from_config();
         }

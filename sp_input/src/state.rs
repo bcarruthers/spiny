@@ -270,9 +270,9 @@ pub enum WindowEvent {
 impl WindowEvent {
     pub fn is_interacting(&self) -> bool {
         match self {
-            WindowEvent::MouseInput(_) |
-            WindowEvent::MouseMoved(_) |
+            WindowEvent::KeyboardInput(_) |
             WindowEvent::MouseWheel(_) |
+            WindowEvent::MouseInput(_) |
             WindowEvent::Touch(_) => true,
             _ => false,
         }
