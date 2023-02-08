@@ -267,6 +267,18 @@ pub enum WindowEvent {
     FullScreenChanged(bool),
 }
 
+impl WindowEvent {
+    pub fn is_interacting(&self) -> bool {
+        match self {
+            WindowEvent::MouseInput(_) |
+            WindowEvent::MouseMoved(_) |
+            WindowEvent::MouseWheel(_) |
+            WindowEvent::Touch(_) => true,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Default, Clone)]
 pub struct KeyboardState {
     pub keys: PressState<KeyCode>,

@@ -3,9 +3,9 @@ use std::{io::Read, path::PathBuf};
 use glam::{IVec2, Vec2, UVec2};
 use indexmap::IndexMap;
 use image::{RgbaImage, DynamicImage};
-use sp_asset::{archive::FileArchive, AssetRef};
+use sp_asset::{archive::FileArchive, AssetRef, AssetId};
 use sp_draw::{AtlasDef, AtlasEntry, AtlasEntryBounds};
-use sp_math::range::IRange2;
+use sp_math::range::{IRange2, Range2};
 
 use crate::{pack::*, Texture};
 
@@ -173,6 +173,10 @@ impl TextureAtlas {
 
     pub fn def(&self) -> &AtlasDef {
         &self.desc
+    }
+
+    pub fn norm_rect(&self, id: AssetId) -> Range2 {
+        self.desc.norm_rect(id)
     }
 
     pub fn from_paths(

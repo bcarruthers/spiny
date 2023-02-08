@@ -43,11 +43,23 @@ impl AtlasDef {
         self.size
     }
 
+    pub fn iter(&self) -> impl Iterator<Item = (&AssetId, &AtlasEntry)> {
+        self.entries.iter()
+    }
+
     pub fn get(&self, key: AssetId) -> &AtlasEntry {
         self.entries.get(&key).expect(&format!("No atlas entry for {:?}", key))
     }
 
     pub fn get_from_ref(&self, r: &AssetRef) -> &AtlasEntry {
         self.entries.get(&r.id).expect(&format!("No atlas entry for {:?}", r.path))
+    }
+
+    pub fn rect(&self, id: AssetId) -> IRange2 {
+        self.get(id).lod(0).rect
+    }
+
+    pub fn norm_rect(&self, id: AssetId) -> Range2 {
+        self.get(id).lod(0).norm_rect
     }
 } 
