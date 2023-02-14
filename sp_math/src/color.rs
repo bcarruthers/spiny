@@ -244,7 +244,7 @@ impl std::ops::Mul<f32> for Rgba {
 }
 
 /// Hue is in degrees: [0, 360]
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub struct Hsva {
     pub h: f32,
     pub s: f32,
@@ -253,9 +253,12 @@ pub struct Hsva {
 }
 
 impl Hsva {
-    pub fn new(h: f32, s: f32, v: f32, a: f32) -> Self {
+    pub const fn new(h: f32, s: f32, v: f32, a: f32) -> Self {
         Self { h, s, v, a }
     }
+
+    pub const ZERO: Self = Self::new(0.0, 0.0, 0.0, 0.0);
+    pub const ONE: Self = Self::new(1.0, 1.0, 1.0, 1.0);
 
     pub fn hsv(h: f32, s: f32, v: f32) -> Self {
         Self::new(h, s, v, 1.0)

@@ -1,4 +1,6 @@
-#[derive(Clone, Copy)]
+use sp_math::color::IRgba;
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum AnsiColor {
     Black,
     Red,
@@ -20,13 +22,33 @@ pub enum AnsiColor {
     Rgb(u8, u8, u8),
 }
 
+impl AnsiColor {
+    pub fn from_irgba(c: IRgba) -> Self {
+        let r = (c.r as u32 * c.a as u32 / 255) as u8;
+        let g = (c.g as u32 * c.a as u32 / 255) as u8;
+        let b = (c.b as u32 * c.a as u32 / 255) as u8;
+        Self::Rgb(r, g, b)
+    }
+}
+
+#[derive(Clone, Default)]
 pub struct AnsiTextBuilder {
     text: String,
+    fg: Option<AnsiColor>,
+    bg: Option<AnsiColor>,
 }
 
 impl AnsiTextBuilder {
+    pub fn push(&mut self, ch: char) {
+        self.text.push(ch)
+    }
+
     pub fn push_str(&mut self, s: &str) {
         self.text.push_str(s)
+    }
+
+    pub fn into_string(self) -> String {
+        self.text
     }
 
     fn begin_seq(&mut self) {
@@ -51,7 +73,6 @@ impl AnsiTextBuilder {
     }
 
     fn push_color(&mut self, color: AnsiColor, bg: usize) {
-        self.begin_seq();
         match color {
             AnsiColor::Black => self.push_code(0 + bg),
             AnsiColor::Red => self.push_code(4 + bg),
@@ -78,30 +99,93 @@ impl AnsiTextBuilder {
                 self.text.push_str(&format!("{}{};{};{}", code, r, g, b))
             }
         }
-        self.end_seq();
     }
 
     pub fn reset(&mut self) {
-        self.text.push_str("\x1b[0m");
+        if self.fg.is_some() || self.bg.is_some() {
+            self.fg = None;
+            self.bg = None;
+            self.text.push_str("\x1b[0m");
+        }
     }
 
     pub fn fg(&mut self, fg: AnsiColor) {
-        self.begin_seq();
-        self.push_color(fg, 0);
-        self.end_seq();
+        if self.fg != Some(fg) {
+            self.fg = Some(fg);
+            self.begin_seq();
+            self.push_color(fg, 0);
+            self.end_seq();
+        }
     }
 
     pub fn bg(&mut self, bg: AnsiColor) {
-        self.begin_seq();
-        self.push_color(bg, 1);
-        self.end_seq();
+        if self.bg != Some(bg) {
+            self.bg = Some(bg);
+            self.begin_seq();
+            self.push_color(bg, 1);
+            self.end_seq();
+        }
     }
 
     pub fn fg_bg(&mut self, fg: AnsiColor, bg: AnsiColor) {
-        self.begin_seq();
-        self.push_color(fg, 0);
-        self.text.push(';');
-        self.push_color(bg, 1);
-        self.end_seq();
+        if self.fg != Some(fg) || self.bg != Some(bg) {
+            self.fg = Some(fg);
+            self.bg = Some(bg);
+            self.begin_seq();
+            self.push_color(fg, 0);
+            self.text.push(';');
+            self.push_color(bg, 1);
+            self.end_seq();
+        }
+    }
+
+    pub fn set_style(&mut self, fg: Option<AnsiColor>, bg: Option<AnsiColor>) {
+        if self.fg != fg || self.bg != bg {
+            match (fg, bg) {
+                (Some(fg), Some(bg)) => {
+                    self.fg_bg(fg, bg);
+                }
+                (Some(fg), None) => {
+                    self.reset();
+                    self.fg(fg);
+                }
+                (None, Some(bg)) => {
+                    self.reset();
+                    self.bg(bg);
+                }
+                (None, None) => self.reset(),
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_examples() {
+        println!("\033[31;1;4mHello\033[0m");
+    }
+
+    fn test(b: AnsiTextBuilder) {
+        let s = b.into_string();
+        println!("{}", s);
+        println!("{:?}", s.chars());
+    }
+
+    #[test]
+    fn test_ansi() {
+        let mut b = AnsiTextBuilder::default();
+        b.fg(AnsiColor::Red);
+        b.push_str("red");
+        b.bg(AnsiColor::Blue);
+        b.push_str(" blue");
+        b.fg(AnsiColor::Green);
+        b.push_str(" green");
+        b.reset();
+        b.push_str(" default");
+        b.reset();
+        test(b);
     }
 }
