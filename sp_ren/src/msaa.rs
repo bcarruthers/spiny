@@ -26,6 +26,7 @@ impl MultisampleFramebuffer {
                 format,
                 usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
                 label: Some("multisample_buffer"),
+                view_formats: &[],
             };
             let view = device
                 .create_texture(multisampled_frame_descriptor)

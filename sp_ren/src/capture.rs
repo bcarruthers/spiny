@@ -112,6 +112,7 @@ impl Capture {
             format, //: wgpu::TextureFormat::Rgba8UnormSrgb,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
             label: None,
+            view_formats: &[],
         });
 
         Self {

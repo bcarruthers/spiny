@@ -32,11 +32,15 @@ impl GraphicsContext {
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
         let backends = backends.unwrap_or_else(default_backends);
-        let instance = wgpu::Instance::new(backends);
+        let desc = wgpu::InstanceDescriptor {
+            backends,
+            ..Default::default()
+        };
+        let instance = wgpu::Instance::new(desc);
         // log::trace!("Created graphics device, adapters: {:?}",
         //     instance.enumerate_adapters(backends).collect::<Vec<_>>());
 
-        let surface = unsafe { instance.create_surface(window) };
+        let surface = unsafe { instance.create_surface(window).expect("Could not create surface") };
         log::trace!("Created surface {:?}", surface);
 
         let adapter = instance
@@ -71,11 +75,12 @@ impl GraphicsContext {
         // log::info!("Supported alpha modes: {:?}", surface.get_supported_alpha_modes(&adapter));
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_supported_formats(&adapter)[0],
+            format: surface.get_capabilities(&adapter).formats[0],
             width: size.x,
             height: size.y,
             present_mode: wgpu::PresentMode::Fifo,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
+            view_formats: vec![],
         };
         log::trace!("Configuring surface {:?}", config);
         surface.configure(&device, &config);
