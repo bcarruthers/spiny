@@ -115,23 +115,25 @@ impl PcgRng {
     }
 
     pub fn next_vec2_in_unit_sphere(&mut self) -> Vec2 {
-        loop {
+        for _ in 0..10 {
             let p = self.next_vec2() * 2.0 - Vec2::ONE;
             let dist_sqr = p.dot(p);
             if dist_sqr <= 1.0 && dist_sqr > 1e-7 {
                 return p;
             }
         }
+        Vec2::ZERO
     }
 
     pub fn next_vec3_in_unit_sphere(&mut self) -> Vec3 {
-        loop {
+        for _ in 0..10 {
             let p = self.next_vec3() * 2.0 - Vec3::ONE;
             let dist_sqr = p.dot(p);
             if dist_sqr <= 1.0 && dist_sqr > 1e-7 {
                 return p;
             }
         }
+        Vec3::ZERO
     }
 
     pub fn next_vec2_unit_length(&mut self) -> Vec2 {

@@ -173,20 +173,12 @@ fn dot3(gi: u8, x: f32, y: f32, z: f32) -> f32 {
     GRAD3[gi][0] * x + GRAD3[gi][1] * y + GRAD3[gi][2] * z
 }
 
-fn floor(x: f32) -> i32 {
-    if x > 0.0f32 {
-        x as i32
-    } else {
-        x as i32 - 1
-    }
-}
-
 pub fn sample3(x: f32, y: f32, z: f32) -> f32 {
     // Skew the input space to determine which simplex cell we're in
     let s = (x + y + z) * F3; // Very nice and simple skew factor for 3D
-    let i = floor(x + s);
-    let j = floor(y + s);
-    let k = floor(z + s);
+    let i = (x + s).floor() as i32;
+    let j = (y + s).floor() as i32;
+    let k = (z + s).floor() as i32;
     let t = (i + j + k) as f32 * G3;
     let x0 = i as f32 - t; // Unskew the cell origin back to (x,y,z) space
     let y0 = j as f32 - t;
@@ -281,4 +273,32 @@ pub fn sample3(x: f32, y: f32, z: f32) -> f32 {
     // Add contributions from each corner to get the final noise value.
     // The result is scaled to stay just inside [-1,1]
     32.0f32 * (n0 + n1 + n2 + n3)
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_simplex_noise() {
+        assert_eq!(super::sample3(0.0, 0.0, 0.0), 0.0);
+        assert_eq!(super::sample3(10.0, 0.0, 0.0), -0.6522211);
+        assert_eq!(super::sample3(10.0, 10.0, 0.0), 0.76009965);
+        assert_eq!(super::sample3(10.0, 10.0, 20.0), -0.10788002);
+    }
+
+    #[test]
+    fn test_noise_perf() {
+        use std::time::Instant;
+        let start = Instant::now();
+        for _ in 0..1 {
+            for z in 0..10 {
+                for y in 0..100 {
+                    for x in 0..100 {
+                        super::sample3(x as f32, y as f32, z as f32);
+                    }
+                }
+            }
+        }
+        let duration = start.elapsed();
+        println!("Elapsed: {:?}", duration);
+    }
 }

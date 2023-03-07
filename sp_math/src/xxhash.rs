@@ -1,5 +1,7 @@
 use std::num::Wrapping;
 
+use glam::{IVec2, IVec3};
+
 const _PRIME32_1: Wrapping<u32> = Wrapping(2654435761u32);
 const PRIME32_2: Wrapping<u32> = Wrapping(2246822519u32);
 const PRIME32_3: Wrapping<u32> = Wrapping(3266489917u32);
@@ -73,4 +75,12 @@ pub fn hash2_i32(seed: u32, x1: i32, x2: i32) -> u32 {
 
 pub fn hash3_i32(seed: u32, x1: i32, x2: i32, x3: i32) -> u32 {
     hash3_u32(seed, x1 as u32, x2 as u32, x3 as u32)
+}
+
+pub fn hash_ivec2(seed: u32, v: IVec2) -> u32 {
+    hash2_i32(seed, v.x, v.y)
+}
+
+pub fn hash_ivec3(seed: u32, v: IVec3) -> u32 {
+    hash3_i32(seed, v.x, v.y, v.z)
 }

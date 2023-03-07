@@ -915,9 +915,10 @@ impl IRange3 {
     }
 
     pub fn iter(&self) -> IRangeIter3 {
+        let r = if self.is_empty() { Self::ZERO } else { *self };
         IRangeIter3 {
-            range: Self::new(self.min, self.max - IVec3::ONE),
-            pos: IVec3::new(self.min.x - 1, self.min.y, self.min.z),
+            range: Self::new(r.min, r.max - IVec3::ONE),
+            pos: IVec3::new(r.min.x - 1, r.min.y, r.min.z),
         }
     }
 }
@@ -1200,10 +1201,26 @@ mod tests {
     }
 
     #[test]
+    fn iter_range2_negative() {
+        let r = IRange2::new(IVec2::new(-2, 0), IVec2::new(-32, 1));
+        let results = r.iter().collect::<Vec<_>>();
+        println!("{:#?}", results);
+        assert_eq!(results.len(), 0);
+    }
+
+    #[test]
     fn iter_range3() {
         let r = IRange3::sized(IVec3::ZERO, IVec3::ONE * 2);
         let results = r.iter().collect::<Vec<_>>();
         //println!("{:#?}", results);
         assert_eq!(results.len(), 8);
+    }
+
+    #[test]
+    fn iter_range3_negative() {
+        let r = IRange3::new(IVec3::new(-2, -2, 0), IVec3::new(0, -32, 1));
+        let results = r.iter().collect::<Vec<_>>();
+        println!("{:#?}", results);
+        assert_eq!(results.len(), 0);
     }
 }
