@@ -287,22 +287,3 @@ impl<Cmd: Clone> UiDrawCmd<Cmd> {
         }
     }
 }
-
-// pub struct UiChild<'a> {
-
-// }
-
-// impl Drop for UiLayerScope {
-//     fn drop(&mut self) {
-//     }
-// }
-
-// pub struct UiDrawCmdBuilder<Cmd> {
-//     cmds: Vec<Cmd>
-// }
-
-// impl<Cmd> UiDrawCmdBuilder<Cmd> {
-//     pub fn layer(index: u32) {
-
-//     }
-// }

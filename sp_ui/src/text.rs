@@ -145,13 +145,6 @@ impl<'a> Default for TextBlock {
     }
 }
 
-    // let getTexBounds (charRect : Range2i) (mapSize : Vector2i) texBounds =
-    //     let scale = Vector2.One / (mapSize.ToVector2())
-    //     let t0 = charRect.Min.ToVector2() * scale
-    //     let t1 = charRect.Max.ToVector2() * scale       
-    //     let p0 = Range2.Lerp(texBounds, t0) 
-    //     let p1 = Range2.Lerp(texBounds, t1)
-    //     Range2(p0, p1)
 fn get_tex_bounds(char_rect: IRange2, map_size: IVec2, tex_bounds: &Range2) -> Range2 {
     let scale = Vec2::ONE / map_size.as_vec2();
     let t0 = char_rect.min.as_vec2() * scale;
@@ -170,15 +163,6 @@ pub struct FontCharInfo {
 }
 
 impl FontCharInfo {
-
-    // let fromCharDescriptor (mapSize : Vector2i) (p : FontCharDescriptor) (texBounds : Range2) = 
-    //     let r = Range2i.Sized(Vector2i(p.RectX, p.RectY), Vector2i(p.RectWidth, p.RectHeight))
-    //     {
-    //         Width = p.Width
-    //         Offset = Vector2i(p.OffsetX, p.OffsetY)
-    //         Size = Vector2i(p.RectWidth, p.RectHeight)
-    //         Rect = getTexBounds r mapSize texBounds
-    //     }
     pub fn from_char_def(map_size: UVec2, p: &FontCharDef, tex_bounds: &Range2) -> Self {
         let r = IRange2::sized(IVec2::new(p.rect_x, p.rect_y), IVec2::new(p.rect_width, p.rect_height));
         Self {
@@ -299,14 +283,6 @@ impl Font {
         }
     }
 
-    // static member FromDescriptor(desc, mapSize, texBounds) =
-    //     let table = Array.zeroCreate 256
-    //     for ch in desc.Chars do
-    //         let code = int ch.Code
-    //         if code < table.Length then
-    //             let coords = FontCharInfo.fromCharDescriptor mapSize ch texBounds
-    //             table.[code] <- coords
-    //     Font(desc.Height, table)
     pub fn from_def(def: &FontDef, map_size: UVec2, tex_bounds: &Range2) -> Self {
         let mut chars = vec![FontCharInfo::default(); 256];
         for ch in &def.chars {
