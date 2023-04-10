@@ -10,7 +10,7 @@ pub use cmd::*;
 pub use mouse::*;
 pub use state::*;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum ElementState {
     Pressed,
     Released,

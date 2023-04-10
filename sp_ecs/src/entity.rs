@@ -1,7 +1,7 @@
 use serde::{Serialize, Deserialize};
 
 use super::page::*;
-use std::collections::VecDeque;
+use std::{collections::VecDeque, fmt::Display};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Default, Clone, Copy)]
 pub struct Eid(pub u32);
@@ -36,6 +36,12 @@ impl Eid {
 impl Into<usize> for Eid {
     fn into(self) -> usize {
         self.index()
+    }
+}
+
+impl Display for Eid {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}-{}", self.index(), self.gen())
     }
 }
 

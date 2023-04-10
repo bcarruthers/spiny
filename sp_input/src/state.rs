@@ -4,7 +4,7 @@ use std::hash::Hash;
 
 use crate::{key::{KeyCode, KeyModifier}, mouse::MouseButton, ElementState};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PressState<T> {
     just_down: IndexSet<T>,
     just_up: IndexSet<T>,
@@ -67,14 +67,27 @@ impl<T: Hash + Eq + Copy> PressState<T> {
         self.just_up.clear();
     }
 
+    pub fn clear(&mut self) {
+        self.clear_events();
+        self.down.clear();
+    }
+
+    pub fn apply_down(&mut self, button: T) {
+        self.down.insert(button);
+        self.just_down.insert(button);
+    }
+
+    pub fn apply_up(&mut self, button: T) {
+        self.down.remove(&button);
+        self.just_up.insert(button);
+    }
+
     pub fn apply(&mut self, button: T, state: ElementState) {
         let is_pressed = state == ElementState::Pressed;
         if is_pressed {
-            self.down.insert(button);
-            self.just_down.insert(button);
+            self.apply_down(button);
         } else {
-            self.down.remove(&button);
-            self.just_up.insert(button);
+            self.apply_up(button);
         }
     }
 }
@@ -288,18 +301,20 @@ pub struct KeyboardState {
 
 impl KeyboardState {
     pub fn clear_events(&mut self) {
+        // Note we clear all presses since they are per-frame events and may
+        // include modifiers (which might not have a matching key release event)
         self.keys.clear_events();
-        self.presses.clear_events();
+        self.presses.clear();
     }
 
-    fn apply(&mut self, input: &KeyboardEvent) {
+    pub fn apply(&mut self, input: &KeyboardEvent) {
         let press = KeyPress {
             mods: self.modifiers,
             code: input.key,
         };
         //log::info!("{:?}", press);
-        self.keys.apply(input.key, input.state.clone());
-        self.presses.apply(press, input.state.clone());
+        self.keys.apply(input.key, input.state);
+        self.presses.apply(press, input.state);
     }
 }
 
@@ -373,7 +388,7 @@ impl WindowState {
                 self.scale = scale
             }
             WindowEvent::KeyboardInput(event) => {
-                //log::info!("Keyboard input: {:?}", event.key);
+                //log::info!("Key {:?}: {:?}", event.state, event.key);
                 self.keyboard.apply(&event)
             }
             WindowEvent::ModifiersChanged(modifiers) => self.keyboard.modifiers = modifiers,
