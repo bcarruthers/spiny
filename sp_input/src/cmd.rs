@@ -1,6 +1,18 @@
+use crate::key::KeyCode;
+
 use super::state::*;
 use indexmap::{IndexMap, map::Entry};
 use std::hash::Hash;
+
+fn get_key_modifiers(key: KeyCode) -> ModifiersState {
+    match key {
+        KeyCode::LShift | KeyCode::RShift => ModifiersState::SHIFT,
+        KeyCode::LControl | KeyCode::RControl => ModifiersState::CTRL,
+        KeyCode::LAlt | KeyCode::RAlt => ModifiersState::ALT,
+        KeyCode::LWin | KeyCode::RWin => ModifiersState::LOGO,
+        _ => ModifiersState::empty(),
+    }
+}
 
 pub struct KeyCmdBinding<Cmd> {
     pub command: Cmd,
@@ -32,10 +44,18 @@ impl<Cmd: Eq + Hash> CommandKeyMap<Cmd> {
     }
 
     pub fn add(&mut self, binding: KeyCmdBinding<Cmd>) {
+        // For keys which are modifiers, automatically add modifiers to mapping
+        // since they will always occur with key
+        let press = KeyPress {
+            mods: binding.key.mods | get_key_modifiers(binding.key.code),
+            code: binding.key.code,
+        };
         match self.map.entry(binding.command) {
-            Entry::Occupied(entry) => entry.into_mut().push(binding.key),
+            Entry::Occupied(entry) => {
+                entry.into_mut().push(press);
+            }
             Entry::Vacant(entry) => {
-                entry.insert(vec![binding.key]);
+                entry.insert(vec![press]);
             }
         }
     }
@@ -43,7 +63,7 @@ impl<Cmd: Eq + Hash> CommandKeyMap<Cmd> {
 
 impl<Cmd: Eq + Hash + Copy> CommandKeyMap<Cmd> {
     pub fn key_down_cmd(&self, input: &KeyboardState, cmd: Cmd) -> Option<Cmd> {
-        if input.presses.any_down(self.get_keys(cmd)) {
+        if input.presses().any_down(self.get_keys(cmd)) {
             Some(cmd)
         } else {
             None
@@ -51,7 +71,7 @@ impl<Cmd: Eq + Hash + Copy> CommandKeyMap<Cmd> {
     }
 
     pub fn key_just_down_cmd(&self, input: &KeyboardState, cmd: Cmd) -> Option<Cmd> {
-        if input.presses.any_just_down(self.get_keys(cmd)) {
+        if input.presses().any_just_down(self.get_keys(cmd)) {
             Some(cmd)
         } else {
             None
@@ -59,7 +79,7 @@ impl<Cmd: Eq + Hash + Copy> CommandKeyMap<Cmd> {
     }
 
     pub fn key_up_cmd(&self, input: &KeyboardState, cmd: Cmd) -> Option<Cmd> {
-        if input.presses.any_up(self.get_keys(cmd)) {
+        if input.presses().any_up(self.get_keys(cmd)) {
             Some(cmd)
         } else {
             None
@@ -67,7 +87,7 @@ impl<Cmd: Eq + Hash + Copy> CommandKeyMap<Cmd> {
     }
 
     pub fn key_just_up_cmd(&self, input: &KeyboardState, cmd: Cmd) -> Option<Cmd> {
-        if input.presses.any_just_up(self.get_keys(cmd)) {
+        if input.presses().any_just_up(self.get_keys(cmd)) {
             Some(cmd)
         } else {
             None

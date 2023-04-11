@@ -240,6 +240,7 @@ pub struct KeyPress {
     pub code: KeyCode,
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct KeyboardEvent {
     pub key: KeyCode,
     pub state: ElementState,
@@ -294,12 +295,22 @@ impl WindowEvent {
 
 #[derive(Default, Clone)]
 pub struct KeyboardState {
-    pub keys: PressState<KeyCode>,
-    pub presses: PressState<KeyPress>,
-    pub modifiers: ModifiersState,
+    keys: PressState<KeyCode>,
+    presses: PressState<KeyPress>,
+    modifiers: ModifiersState,
+    pending_modifiers: ModifiersState,
+    pending_events: Vec<KeyboardEvent>,
 }
 
 impl KeyboardState {
+    pub fn keys(&self) -> &PressState<KeyCode> {
+        &self.keys
+    }
+
+    pub fn presses(&self) -> &PressState<KeyPress> {
+        &self.presses
+    }
+
     pub fn clear_events(&mut self) {
         // Note we clear all presses since they are per-frame events and may
         // include modifiers (which might not have a matching key release event)
@@ -307,14 +318,28 @@ impl KeyboardState {
         self.presses.clear();
     }
 
-    pub fn apply(&mut self, input: &KeyboardEvent) {
-        let press = KeyPress {
-            mods: self.modifiers,
-            code: input.key,
-        };
-        //log::info!("{:?}", press);
-        self.keys.apply(input.key, input.state);
-        self.presses.apply(press, input.state);
+    pub fn push_modifiers(&mut self, modifiers: ModifiersState) {
+        self.pending_modifiers = modifiers;
+    }
+
+    pub fn push_event(&mut self, key: KeyboardEvent) {
+        self.pending_events.push(key);
+    }
+
+    pub fn flush(&mut self) {
+        // Deferring events so we can ensure modifiers are always applied
+        // consistently regardless of the order key and modifie events are
+        // received from winit (macos differs from windows)
+        self.modifiers = std::mem::take(&mut self.pending_modifiers);
+        for event in self.pending_events.drain(..) {
+            let press = KeyPress {
+                mods: self.modifiers,
+                code: event.key,
+            };
+            //log::info!("{:?}", press);
+            self.keys.apply(event.key, event.state);
+            self.presses.apply(press, event.state);    
+        }
     }
 }
 
@@ -389,9 +414,11 @@ impl WindowState {
             }
             WindowEvent::KeyboardInput(event) => {
                 //log::info!("Key {:?}: {:?}", event.state, event.key);
-                self.keyboard.apply(&event)
+                self.keyboard.push_event(event)
             }
-            WindowEvent::ModifiersChanged(modifiers) => self.keyboard.modifiers = modifiers,
+            WindowEvent::ModifiersChanged(modifiers) => {
+                self.keyboard.push_modifiers(modifiers)
+            }
             WindowEvent::CursorMoved(pos) => self.mouse.update_pos(pos.as_vec2(), self.size),
             WindowEvent::MouseMoved(delta) => self.mouse.update_delta(delta, self.size),
             WindowEvent::MouseWheel(delta) => {
@@ -405,5 +432,9 @@ impl WindowState {
             WindowEvent::PasteFromClipboard(s) => self.clipboard_data = Some(s),
             WindowEvent::FullScreenChanged(fullscreen) => self.fullscreen = fullscreen,
         }
+    }
+
+    pub fn flush(&mut self) {
+        self.keyboard.flush();
     }
 }

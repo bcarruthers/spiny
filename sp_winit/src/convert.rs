@@ -243,12 +243,15 @@ pub fn convert_window_event(event: &winit::event::WindowEvent) -> Option<WindowE
             device_id: _,
             input,
             is_synthetic: _,
-        } => input.virtual_keycode.map(|key| {
-            WindowEvent::KeyboardInput(KeyboardEvent {
-                state: convert_element_state(input.state),
-                key: convert_virtual_key_code(key),
+        } => {
+            //log::info!("Key: {:?}", input);
+            input.virtual_keycode.map(|key| {
+                WindowEvent::KeyboardInput(KeyboardEvent {
+                    state: convert_element_state(input.state),
+                    key: convert_virtual_key_code(key),
+                })
             })
-        }),
+        },
         winit::event::WindowEvent::ModifiersChanged(state) => Some(WindowEvent::ModifiersChanged(
             ModifiersState::from_bits(state.bits()).unwrap(),
         )),

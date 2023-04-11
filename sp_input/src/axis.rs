@@ -21,12 +21,12 @@ impl InputAxis {
     pub fn update(&mut self, input: &KeyboardState, pos_keys: &[KeyPress], neg_keys: &[KeyPress]) {
         // Note we ignore any modifiers, otherwise axes can get stuck or not activate
         // properly with modifier down
-        let neg = any_down(&input.keys, neg_keys);
-        let pos = any_down(&input.keys, pos_keys);
+        let neg = any_down(input.keys(), neg_keys);
+        let pos = any_down(input.keys(), pos_keys);
         self.dir = if neg || pos {
-            if any_just_down(&input.keys, &neg_keys) {
+            if any_just_down(input.keys(), &neg_keys) {
                 -1.0
-            } else if any_just_down(&input.keys, &pos_keys) {
+            } else if any_just_down(input.keys(), &pos_keys) {
                 1.0
             } else if neg != pos {
                 if neg {
