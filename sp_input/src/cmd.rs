@@ -1,18 +1,6 @@
-use crate::key::KeyCode;
-
 use super::state::*;
 use indexmap::{IndexMap, map::Entry};
 use std::hash::Hash;
-
-fn get_key_modifiers(key: KeyCode) -> ModifiersState {
-    match key {
-        KeyCode::LShift | KeyCode::RShift => ModifiersState::SHIFT,
-        KeyCode::LControl | KeyCode::RControl => ModifiersState::CTRL,
-        KeyCode::LAlt | KeyCode::RAlt => ModifiersState::ALT,
-        KeyCode::LWin | KeyCode::RWin => ModifiersState::LOGO,
-        _ => ModifiersState::empty(),
-    }
-}
 
 pub struct KeyCmdBinding<Cmd> {
     pub command: Cmd,
@@ -46,8 +34,9 @@ impl<Cmd: Eq + Hash> CommandKeyMap<Cmd> {
     pub fn add(&mut self, binding: KeyCmdBinding<Cmd>) {
         // For keys which are modifiers, automatically add modifiers to mapping
         // since they will always occur with key
+        let mods = ModifiersState::from_key_code(binding.key.code);
         let press = KeyPress {
-            mods: binding.key.mods | get_key_modifiers(binding.key.code),
+            mods: binding.key.mods | mods,
             code: binding.key.code,
         };
         match self.map.entry(binding.command) {

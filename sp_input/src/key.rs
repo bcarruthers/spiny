@@ -217,17 +217,17 @@ pub enum KeyCode {
 impl KeyCode {
     fn try_to_str(&self) -> Option<&str> {
         match self {
-            KeyCode::Key1 => Some("1"),
-            KeyCode::Key2 => Some("2"),
-            KeyCode::Key3 => Some("3"),
-            KeyCode::Key4 => Some("4"),
-            KeyCode::Key5 => Some("5"),
-            KeyCode::Key6 => Some("6"),
-            KeyCode::Key7 => Some("7"),
-            KeyCode::Key8 => Some("8"),
-            KeyCode::Key9 => Some("9"),
-            KeyCode::Key0 => Some("0"),
-            KeyCode::Escape => Some("ESC"),
+            Self::Key1 => Some("1"),
+            Self::Key2 => Some("2"),
+            Self::Key3 => Some("3"),
+            Self::Key4 => Some("4"),
+            Self::Key5 => Some("5"),
+            Self::Key6 => Some("6"),
+            Self::Key7 => Some("7"),
+            Self::Key8 => Some("8"),
+            Self::Key9 => Some("9"),
+            Self::Key0 => Some("0"),
+            Self::Escape => Some("ESC"),
             _ => None
         }
     }
@@ -240,6 +240,16 @@ impl KeyCode {
                 s.truncate(3);
                 s
             }
+        }
+    }
+
+    pub fn modifier(&self) -> Option<KeyModifier> {
+        match self {
+            Self::LAlt | Self::RAlt => Some(KeyModifier::Alt),
+            Self::LControl | Self::RControl => Some(KeyModifier::Ctrl),
+            Self::LShift | Self::RShift => Some(KeyModifier::Shift),
+            Self::LWin | Self::RWin => Some(KeyModifier::Logo),
+            _ => None
         }
     }
 }

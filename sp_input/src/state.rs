@@ -225,6 +225,14 @@ impl ModifiersState {
         }
     }
 
+    pub fn from_key_code(code: KeyCode) -> Self {
+        if let Some(modifier) = code.modifier() {
+            Self::from_key_modifier(modifier)
+        } else {
+            Self::empty()
+        }
+    }
+
     pub fn from_key_modifiers(modifiers: &[KeyModifier]) -> Self {
         let mut state = Self::empty();
         for modifier in modifiers {
@@ -331,6 +339,16 @@ impl KeyboardState {
         // consistently regardless of the order key and modifie events are
         // received from winit (macos differs from windows)
         self.modifiers = std::mem::take(&mut self.pending_modifiers);
+        // For wasm, we don't get modifier events, so we need to apply them
+        // from events
+        for event in &self.pending_events {
+            let mods = ModifiersState::from_key_code(event.key);
+            match event.state {
+                ElementState::Pressed => self.modifiers |= mods,
+                ElementState::Released => self.modifiers &= !mods,
+            }
+        }
+        // Now that modifiers are updated, apply events
         for event in self.pending_events.drain(..) {
             let press = KeyPress {
                 mods: self.modifiers,
@@ -417,6 +435,7 @@ impl WindowState {
                 self.keyboard.push_event(event)
             }
             WindowEvent::ModifiersChanged(modifiers) => {
+                //log::info!("Modifiers changed: {:?}", modifiers);
                 self.keyboard.push_modifiers(modifiers)
             }
             WindowEvent::CursorMoved(pos) => self.mouse.update_pos(pos.as_vec2(), self.size),
