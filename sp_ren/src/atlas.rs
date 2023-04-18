@@ -193,6 +193,7 @@ impl TextureAtlas {
                 device,
                 queue,
                 &image,
+                wgpu::TextureFormat::Rgba8UnormSrgb,
                 filter,
                 None,
                 Some("atlas"),

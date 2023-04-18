@@ -105,6 +105,7 @@ impl Texture {
         width: u32,
         height: u32,
         mip_level_count: u32,
+        format: wgpu::TextureFormat,
         filter: wgpu::FilterMode,
     ) -> ImageResult<Self> {
         let size = wgpu::Extent3d {
@@ -118,7 +119,7 @@ impl Texture {
             mip_level_count,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            format,
             usage: wgpu::TextureUsages::TEXTURE_BINDING
                 | wgpu::TextureUsages::COPY_DST
                 | wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -157,6 +158,7 @@ impl Texture {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         images: &[&image::RgbaImage],
+        format: wgpu::TextureFormat,
         filter: wgpu::FilterMode,
         label: Option<&str>,
     ) -> ImageResult<Self> {
@@ -166,6 +168,7 @@ impl Texture {
             images[0].width(),
             images[0].height(),
             images.len() as u32,
+            format,
             filter,
         )?;
         for i in 0..images.len() {
@@ -178,6 +181,7 @@ impl Texture {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         image: &image::RgbaImage,
+        format: wgpu::TextureFormat,
         filter: wgpu::FilterMode,
         mipmap: Option<&MipmapGenerator>,
         label: Option<&str>,
@@ -193,6 +197,7 @@ impl Texture {
             image.width(),
             image.height(),
             mip_level_count,
+            format,
             filter,
         )?;
         texture.write_rgba(queue, image, 0, 0, 0);
@@ -209,6 +214,7 @@ impl Texture {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         bytes: &[u8],
+        format: wgpu::TextureFormat,
         filter: wgpu::FilterMode,
         mipmap: Option<&MipmapGenerator>,
         label: &str,
@@ -219,11 +225,12 @@ impl Texture {
                 device,
                 queue,
                 &image.to_rgba8(),
+                format,
                 filter,
                 mipmap,
                 Some(label),
             ),
-            Some(rgba) => Self::from_rgba_image(device, queue, &rgba, filter, mipmap, Some(label)),
+            Some(rgba) => Self::from_rgba_image(device, queue, &rgba, format, filter, mipmap, Some(label)),
         }
     }
 }
