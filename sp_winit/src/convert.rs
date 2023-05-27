@@ -1,9 +1,5 @@
 use glam::{IVec2, UVec2, Vec2};
-use sp_input::state::*;
 use winit::event::MouseScrollDelta;
-
-use sp_input::key::*;
-use sp_input::mouse::MouseButton;
 use sp_input::*;
 
 pub fn convert_element_state(element_state: winit::event::ElementState) -> ElementState {
@@ -212,9 +208,9 @@ pub fn convert_device_event(event: &winit::event::DeviceEvent) -> Option<WindowE
     match event {
         winit::event::DeviceEvent::Added => None,
         winit::event::DeviceEvent::Removed => None,
-        winit::event::DeviceEvent::MouseMotion { delta } => Some(WindowEvent::MouseMoved(
+        winit::event::DeviceEvent::MouseMotion { delta } => Some(WindowEvent::Mouse(MouseEvent::MouseMoved(
             Vec2::new(delta.0 as f32, delta.1 as f32),
-        )),
+        ))),
         winit::event::DeviceEvent::MouseWheel { delta: _ } =>
             // Ignore event here to avoid duplicate with window event
             None,
@@ -259,10 +255,10 @@ pub fn convert_window_event(event: &winit::event::WindowEvent) -> Option<WindowE
             device_id: _,
             position,
             modifiers: _,
-        } => Some(WindowEvent::CursorMoved(IVec2::new(
+        } => Some(WindowEvent::Mouse(MouseEvent::CursorMoved(IVec2::new(
             position.x as i32,
             position.y as i32,
-        ))),
+        )))),
         winit::event::WindowEvent::CursorEntered { device_id: _ } => None,
         winit::event::WindowEvent::CursorLeft { device_id: _ } => None,
         winit::event::WindowEvent::MouseWheel {
@@ -270,16 +266,16 @@ pub fn convert_window_event(event: &winit::event::WindowEvent) -> Option<WindowE
             delta,
             phase: _,
             modifiers: _,
-        } => Some(WindowEvent::MouseWheel(convert_scroll_delta(delta))),
+        } => Some(WindowEvent::Mouse(MouseEvent::MouseWheel(convert_scroll_delta(delta)))),
         winit::event::WindowEvent::MouseInput {
             device_id: _,
             state,
             button,
             modifiers: _,
-        } => Some(WindowEvent::MouseInput(MouseEvent {
+        } => Some(WindowEvent::Mouse(MouseEvent::MouseInput(MouseButtonEvent {
             button: convert_mouse_button(*button),
             state: convert_element_state(*state),
-        })),
+        }))),
         winit::event::WindowEvent::TouchpadPressure {
             device_id: _,
             pressure: _,

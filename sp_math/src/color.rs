@@ -38,7 +38,7 @@ fn lerp_hue(h0: f32, h1: f32, t: f32) -> f32 {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct IRgba {
     pub r: u8,
     pub g: u8,
@@ -229,6 +229,19 @@ impl Rgba {
     }
 }
 
+impl std::ops::Add<Rgba> for Rgba {
+    type Output = Self;
+    fn add(self, rhs: Rgba) -> Self {
+        Self::from_vec4(self.to_vec4() + rhs.to_vec4())
+    }
+}
+
+impl std::ops::AddAssign<Rgba> for Rgba {
+    fn add_assign(&mut self, rhs: Rgba) {
+        *self = *self + rhs;
+    }
+}
+
 impl std::ops::Mul<Rgba> for Rgba {
     type Output = Self;
     fn mul(self, rhs: Rgba) -> Self {
@@ -311,6 +324,33 @@ impl Hsva {
             v: crate::interp::lerp(self.v, rhs.v, t),
             a: crate::interp::lerp(self.a, rhs.a, t),
         }
+    }
+}
+
+impl std::ops::Add<Hsva> for Hsva {
+    type Output = Self;
+    fn add(self, rhs: Hsva) -> Self {
+        Self::from_vec4(self.to_vec4() + rhs.to_vec4())
+    }
+}
+
+impl std::ops::AddAssign<Hsva> for Hsva {
+    fn add_assign(&mut self, rhs: Hsva) {
+        *self = *self + rhs;
+    }
+}
+
+impl std::ops::Mul<Hsva> for Hsva {
+    type Output = Self;
+    fn mul(self, rhs: Hsva) -> Self {
+        Self::from_vec4(self.to_vec4() * rhs.to_vec4())
+    }
+}
+
+impl std::ops::Mul<f32> for Hsva {
+    type Output = Self;
+    fn mul(self, rhs: f32) -> Self {
+        Self::from_vec4(self.to_vec4() * rhs)
     }
 }
 

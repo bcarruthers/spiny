@@ -1,4 +1,5 @@
-use super::state::*;
+use crate::keyboard::{KeyPress, KeyboardState};
+
 use indexmap::{IndexMap, map::Entry};
 use std::hash::Hash;
 
@@ -34,7 +35,7 @@ impl<Cmd: Eq + Hash> CommandKeyMap<Cmd> {
     pub fn add(&mut self, binding: KeyCmdBinding<Cmd>) {
         // For keys which are modifiers, automatically add modifiers to mapping
         // since they will always occur with key
-        let mods = ModifiersState::from_key_code(binding.key.code);
+        let mods = binding.key.code.to_modifiers();
         let press = KeyPress {
             mods: binding.key.mods | mods,
             code: binding.key.code,

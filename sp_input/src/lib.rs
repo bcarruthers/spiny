@@ -1,17 +1,19 @@
 #![forbid(unsafe_code)]
 
-pub mod axis;
-pub mod cmd;
-pub mod key;
-pub mod mouse;
-pub mod state;
+mod axis;
+mod cmd;
+mod gamepad;
+mod keyboard;
+mod mouse;
+mod press;
+mod state;
+mod touch;
 
+pub use axis::*;
 pub use cmd::*;
+pub use gamepad::*;
+pub use keyboard::*;
 pub use mouse::*;
+pub use press::*;
 pub use state::*;
-
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub enum ElementState {
-    Pressed,
-    Released,
-}
+pub use touch::*;

@@ -1,6 +1,6 @@
 use glam::Vec3;
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct Cone {
     pub origin: Vec3,
     pub dir: Vec3,

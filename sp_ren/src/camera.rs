@@ -1,6 +1,6 @@
 use glam::Mat4;
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct CameraParams {
     pub view: Mat4,
     pub proj: Mat4,

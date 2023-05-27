@@ -1,6 +1,6 @@
-use crate::{KeyPress, PressState, key::KeyCode};
+use crate::{press::PressState, keyboard::{KeyCode, KeyPress, KeyboardState}};
 
-use super::{cmd::CommandKeyMap, state::KeyboardState};
+use super::{cmd::CommandKeyMap};
 use glam::*;
 use std::hash::Hash;
 
@@ -14,7 +14,7 @@ fn any_just_down(state: &PressState<KeyCode>, buttons: &[KeyPress]) -> bool {
 
 #[derive(Default)]
 pub struct InputAxis {
-    pub dir: f32,
+    dir: f32,
 }
 
 impl InputAxis {
