@@ -1,56 +1,13 @@
 use glam::UVec2;
 use super::Texture;
 
-/// Order-independent transparency
-pub struct OitBuffers {
+struct OitBuffers {
     accum_texture: Texture,
     reveal_texture: Texture,
     group: wgpu::BindGroup,
-    pipeline: wgpu::RenderPipeline,
 }
 
-// Based on https://casual-effects.blogspot.com/2015/03/implemented-weighted-blended-order.html
-// Target	Format  Clear       Src Blend   Dst Blend           Write ("Src")
-// accum    RGBA16F (0,0,0,0)   ONE	        ONE                 (r*a, g*a, b*a, a) * w
-// reveal   R8      (1,0,0,0)   ZERO        ONE_MINUS_SRC_COLOR a
-// screen                       SRC_ALPHA   ONE_MINUS_SRC_ALPHA (accum.rgb / max(accum.a, epsilon), 1 - revealage)
 impl OitBuffers {
-    pub fn color_targets() -> Vec<Option<wgpu::ColorTargetState>> {
-        vec![
-            Some(wgpu::ColorTargetState {
-                format: wgpu::TextureFormat::Rgba16Float,
-                //blend: Some(wgpu::BlendState::REPLACE),
-                blend: Some(wgpu::BlendState {
-                    color: wgpu::BlendComponent {
-                        src_factor: wgpu::BlendFactor::One,
-                        dst_factor: wgpu::BlendFactor::One,
-                        operation: wgpu::BlendOperation::Add,
-                    },
-                    alpha: wgpu::BlendComponent {
-                        src_factor: wgpu::BlendFactor::One,
-                        dst_factor: wgpu::BlendFactor::One,
-                        operation: wgpu::BlendOperation::Add,
-                    },
-                }),
-                write_mask: wgpu::ColorWrites::ALL,
-            }),
-            Some(wgpu::ColorTargetState {
-                format: wgpu::TextureFormat::R8Unorm,
-                //blend: Some(wgpu::BlendState::REPLACE),
-                blend: Some(wgpu::BlendState {
-                    color: wgpu::BlendComponent {
-                        src_factor: wgpu::BlendFactor::Zero,
-                        dst_factor: wgpu::BlendFactor::OneMinusSrc,
-                        operation: wgpu::BlendOperation::Add,
-                    },
-                    // Not used
-                    alpha: wgpu::BlendComponent::OVER,
-                }),
-                write_mask: wgpu::ColorWrites::RED,
-            }),
-        ]
-    }
-
     fn create_accum(device: &wgpu::Device, size: UVec2, sample_count: u32) -> Texture {
         let size = wgpu::Extent3d {
             width: size.x,
@@ -132,13 +89,109 @@ impl OitBuffers {
     pub fn new(
         device: &wgpu::Device,
         size: UVec2,
+        sample_count: u32,
+        layout: &wgpu::BindGroupLayout,
+    ) -> Self {
+        let accum_texture = Self::create_accum(device, size, sample_count);
+        let reveal_texture = Self::create_reveal(device, size, sample_count);
+        let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&accum_texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&accum_texture.sampler),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: wgpu::BindingResource::TextureView(&reveal_texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: wgpu::BindingResource::Sampler(&reveal_texture.sampler),
+                },
+            ],
+            label: Some("oit_bind_group"),
+        });
+        Self {
+            accum_texture,
+            reveal_texture,
+            group,
+        }
+    }
+
+    pub fn accum_view(&self) -> &wgpu::TextureView {
+        &self.accum_texture.view
+    }
+
+    pub fn reveal_view(&self) -> &wgpu::TextureView {
+        &self.reveal_texture.view
+    }
+
+    pub fn bind_group(&self) -> &wgpu::BindGroup {
+        &self.group
+    }
+}
+
+/// Order-independent transparency
+pub struct OitRenderer {
+    buffers: OitBuffers,
+    layout: wgpu::BindGroupLayout,
+    pipeline: wgpu::RenderPipeline,
+}
+
+// Based on https://casual-effects.blogspot.com/2015/03/implemented-weighted-blended-order.html
+// Target	Format  Clear       Src Blend   Dst Blend           Write ("Src")
+// accum    RGBA16F (0,0,0,0)   ONE	        ONE                 (r*a, g*a, b*a, a) * w
+// reveal   R8      (1,0,0,0)   ZERO        ONE_MINUS_SRC_COLOR a
+// screen                       SRC_ALPHA   ONE_MINUS_SRC_ALPHA (accum.rgb / max(accum.a, epsilon), 1 - revealage)
+impl OitRenderer {
+    pub fn color_targets() -> Vec<Option<wgpu::ColorTargetState>> {
+        vec![
+            Some(wgpu::ColorTargetState {
+                format: wgpu::TextureFormat::Rgba16Float,
+                //blend: Some(wgpu::BlendState::REPLACE),
+                blend: Some(wgpu::BlendState {
+                    color: wgpu::BlendComponent {
+                        src_factor: wgpu::BlendFactor::One,
+                        dst_factor: wgpu::BlendFactor::One,
+                        operation: wgpu::BlendOperation::Add,
+                    },
+                    alpha: wgpu::BlendComponent {
+                        src_factor: wgpu::BlendFactor::One,
+                        dst_factor: wgpu::BlendFactor::One,
+                        operation: wgpu::BlendOperation::Add,
+                    },
+                }),
+                write_mask: wgpu::ColorWrites::ALL,
+            }),
+            Some(wgpu::ColorTargetState {
+                format: wgpu::TextureFormat::R8Unorm,
+                //blend: Some(wgpu::BlendState::REPLACE),
+                blend: Some(wgpu::BlendState {
+                    color: wgpu::BlendComponent {
+                        src_factor: wgpu::BlendFactor::Zero,
+                        dst_factor: wgpu::BlendFactor::OneMinusSrc,
+                        operation: wgpu::BlendOperation::Add,
+                    },
+                    // Not used
+                    alpha: wgpu::BlendComponent::OVER,
+                }),
+                write_mask: wgpu::ColorWrites::RED,
+            }),
+        ]
+    }
+
+    pub fn new(
+        device: &wgpu::Device,
+        size: UVec2,
         format: wgpu::TextureFormat,
         sample_count: u32,
         shader: &wgpu::ShaderModule,
     ) -> Self {
-        let accum_texture = Self::create_accum(device, size, sample_count);
-        let reveal_texture = Self::create_reveal(device, size, sample_count);
-        
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[
                 wgpu::BindGroupLayoutEntry {
@@ -176,30 +229,7 @@ impl OitBuffers {
             ],
             label: Some("oit_bind_group_layout"),
         });
-
-        let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&accum_texture.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&accum_texture.sampler),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: wgpu::BindingResource::TextureView(&reveal_texture.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 3,
-                    resource: wgpu::BindingResource::Sampler(&reveal_texture.sampler),
-                },
-            ],
-            label: Some("oit_bind_group"),
-        });
-
+        let buffers = OitBuffers::new(device, size, sample_count, &layout);
         let pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("oit_composite_pipeline_layout"),
@@ -261,16 +291,15 @@ impl OitBuffers {
             multiview: None,
         });
         Self {
-            accum_texture,
-            reveal_texture,
-            group,
+            buffers,
+            layout,
             pipeline,
         }
     }
 
     pub fn accum_attachment(&self) -> wgpu::RenderPassColorAttachment {
         wgpu::RenderPassColorAttachment {
-            view: &self.accum_texture.view,
+            view: &self.buffers.accum_view(),
             resolve_target: None,
             ops: wgpu::Operations {
                 load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.0, g: 0.0, b: 0.0, a: 0.0 } ),
@@ -281,7 +310,7 @@ impl OitBuffers {
 
     pub fn reveal_attachment(&self) -> wgpu::RenderPassColorAttachment {
         wgpu::RenderPassColorAttachment {
-            view: &self.reveal_texture.view,
+            view: &self.buffers.reveal_view(),
             resolve_target: None,
             ops: wgpu::Operations {
                 load: wgpu::LoadOp::Clear(wgpu::Color { r: 1.0, g: 0.0, b: 0.0, a: 0.0 } ),
@@ -291,13 +320,12 @@ impl OitBuffers {
     }
 
     pub fn resize(&mut self, device: &wgpu::Device, size: UVec2, sample_count: u32) {
-        self.accum_texture = Self::create_accum(device, size, sample_count);
-        self.reveal_texture = Self::create_reveal(device, size, sample_count);
+        self.buffers = OitBuffers::new(device, size, sample_count, &self.layout);
     }
 
     pub fn draw<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
         render_pass.set_pipeline(&self.pipeline);
-        render_pass.set_bind_group(0, &self.group, &[]);
+        render_pass.set_bind_group(0, self.buffers.bind_group(), &[]);
         render_pass.draw(0..3, 0..1);
     }
 }
