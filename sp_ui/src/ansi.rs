@@ -1,4 +1,5 @@
-use sp_math::color::IRgba;
+use glam::IVec2;
+use sp_math::{color::IRgba, range::IRange2};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum AnsiColor {
@@ -157,6 +158,60 @@ impl AnsiTextBuilder {
             }
         }
     }
+}
+
+fn index_of(range: IRange2, stride: usize, p: IVec2) -> usize {
+    let rp = p - range.min;
+    rp.y as usize * stride + rp.x as usize
+}
+
+pub fn format_grid_half_char<T: Into<IRgba> + Copy>(
+    cells: &[T],
+    range: IRange2,
+    stride: usize,
+) -> String {
+    let y_range = range.y_range();
+    let y_size = y_range.size();
+    let rows = (y_size + 1) / 2;
+    // Top bar
+    //let ch = char::from_u32(0x2580).unwrap();
+    // Bottom bar: Use this if +Y is up since we may hide the first row for odd size
+    let ch = char::from_u32(0x2584).unwrap();
+    let mut s = AnsiTextBuilder::default();
+    for r in 0..rows {
+        // Reverse rows so y or z increases up
+        let yr = rows - 1 - r;
+        for x in range.x() {
+            let c1 = {
+                let y = y_range.min + yr * 2 + 1;
+                if y < y_range.max {
+                    let p = IVec2::new(x, y);
+                    let i = index_of(range, stride, p);
+                    Some(AnsiColor::from_irgba(cells[i].into()))
+                } else {
+                    None
+                }
+            };
+            let c2 = {
+                let y = y_range.min + yr * 2 + 0;
+                if y < y_range.max {
+                    let p = IVec2::new(x, y);
+                    let i = index_of(range, stride, p);
+                    Some(AnsiColor::from_irgba(cells[i].into()))
+                } else {
+                    None
+                }
+            };
+            s.set_style(c2, c1);
+            s.push(ch);
+        }
+        // Reset before newline to avoid stretching color
+        s.reset();
+        if r < rows - 1 {
+            s.push('\n');
+        }
+    }
+    s.into_string()
 }
 
 #[cfg(test)]
