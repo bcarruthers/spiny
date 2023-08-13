@@ -476,6 +476,16 @@ impl ops::Sub<IVec2> for IRange2 {
     }
 }
 
+impl ops::Mul<IVec2> for IRange2 {
+    type Output = Self;
+    fn mul(self, rhs: IVec2) -> Self {
+        Self {
+            min: self.min * rhs,
+            max: self.max * rhs,
+        }
+    }
+}
+
 impl ops::Div<IVec2> for IRange2 {
     type Output = Self;
     fn div(self, rhs: IVec2) -> Self {

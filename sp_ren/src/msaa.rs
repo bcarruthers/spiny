@@ -38,14 +38,18 @@ impl MultisampleFramebuffer {
     pub fn color_attachment<'a>(
         &'a self,
         view: &'a wgpu::TextureView,
-        color: wgpu::Color,
+        color: Option<wgpu::Color>,
     ) -> wgpu::RenderPassColorAttachment<'a> {
+        let load = match color {
+            Some(color) => wgpu::LoadOp::Clear(color),
+            None => wgpu::LoadOp::Load
+        };
         if let Some(msaa_view) = &self.view {
             wgpu::RenderPassColorAttachment {
                 view: msaa_view,
                 resolve_target: Some(view),
                 ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(color),
+                    load,
                     // Storing pre-resolve MSAA data is unnecessary if it isn't used later.
                     // On tile-based GPU, avoid store can reduce your app's memory footprint.
                     store: false,
@@ -56,7 +60,7 @@ impl MultisampleFramebuffer {
                 view,
                 resolve_target: None,
                 ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(color),
+                    load,
                     store: true,
                 },
             }

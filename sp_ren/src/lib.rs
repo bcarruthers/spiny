@@ -12,6 +12,7 @@ pub mod mesh;
 pub mod mipmap;
 pub mod model;
 pub mod msaa;
+pub mod oit;
 pub mod pack;
 pub mod quad;
 pub mod ren2d;
