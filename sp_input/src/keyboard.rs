@@ -1,3 +1,5 @@
+use std::hash::Hash;
+use indexmap::{IndexMap, map::Entry};
 use serde_derive::*;
 
 use crate::press::{ModifiersState, ElementState, PressState};
@@ -314,6 +316,14 @@ impl KeyboardState {
         &self.presses
     }
 
+    pub fn any_down(&self, buttons: &[KeyPress]) -> bool {
+        buttons.iter().any(|button| self.keys.down(button.code))
+    }
+    
+    pub fn any_just_down(&self, buttons: &[KeyPress]) -> bool {
+        buttons.iter().any(|button| self.keys.just_down(button.code))
+    }
+    
     pub fn clear_events(&mut self) {
         // Note we clear all presses since they are per-frame events and may
         // include modifiers (which might not have a matching key release event)
@@ -353,5 +363,121 @@ impl KeyboardState {
             self.keys.apply(event.key, event.state);
             self.presses.apply(press, event.state);    
         }
+    }
+}
+
+pub struct KeyCmdBinding<Cmd> {
+    pub command: Cmd,
+    pub key: KeyPress,
+}
+
+pub struct CommandKeyMap<Cmd> {
+    map: IndexMap<Cmd, Vec<KeyPress>>,
+}
+
+impl<Cmd> Default for CommandKeyMap<Cmd> {
+    fn default() -> Self {
+        Self {
+            map: Default::default(),
+        }
+    }
+}
+
+impl<Cmd: Eq + Hash> CommandKeyMap<Cmd> {
+    pub fn get_keys(&self, cmd: Cmd) -> &[KeyPress] {
+        match self.map.get(&cmd) {
+            Some(keys) => &keys,
+            None => &[],
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.map.clear();
+    }
+
+    pub fn add(&mut self, binding: KeyCmdBinding<Cmd>) {
+        // For keys which are modifiers, automatically add modifiers to mapping
+        // since they will always occur with key
+        let mods = binding.key.code.to_modifiers();
+        let press = KeyPress {
+            mods: binding.key.mods | mods,
+            code: binding.key.code,
+        };
+        match self.map.entry(binding.command) {
+            Entry::Occupied(entry) => {
+                entry.into_mut().push(press);
+            }
+            Entry::Vacant(entry) => {
+                entry.insert(vec![press]);
+            }
+        }
+    }
+}
+
+impl<Cmd: Eq + Hash + Copy> CommandKeyMap<Cmd> {
+    pub fn key_down_cmd(&self, input: &KeyboardState, cmd: Cmd) -> Option<Cmd> {
+        if input.presses().any_down(self.get_keys(cmd)) {
+            Some(cmd)
+        } else {
+            None
+        }
+    }
+
+    pub fn key_just_down_cmd(&self, input: &KeyboardState, cmd: Cmd) -> Option<Cmd> {
+        if input.presses().any_just_down(self.get_keys(cmd)) {
+            Some(cmd)
+        } else {
+            None
+        }
+    }
+
+    pub fn key_up_cmd(&self, input: &KeyboardState, cmd: Cmd) -> Option<Cmd> {
+        if input.presses().any_up(self.get_keys(cmd)) {
+            Some(cmd)
+        } else {
+            None
+        }
+    }
+
+    pub fn key_just_up_cmd(&self, input: &KeyboardState, cmd: Cmd) -> Option<Cmd> {
+        if input.presses().any_just_up(self.get_keys(cmd)) {
+            Some(cmd)
+        } else {
+            None
+        }
+    }
+
+    pub fn key_down_cmds<'a>(
+        &'a self,
+        input: &'a KeyboardState,
+        set: &'a [Cmd],
+    ) -> impl Iterator<Item = Cmd> + 'a {
+        set.iter().filter_map(|cmd| self.key_down_cmd(input, *cmd))
+    }
+
+    pub fn key_just_down_cmds<'a>(
+        &'a self,
+        input: &'a KeyboardState,
+        set: &'a [Cmd],
+    ) -> impl Iterator<Item = Cmd> + 'a {
+        set.iter()
+            .filter_map(|cmd| self.key_just_down_cmd(input, *cmd))
+    }
+
+    pub fn key_up_cmds<'a>(
+        &'a self,
+        input: &'a KeyboardState,
+        set: &'a [Cmd],
+    ) -> impl Iterator<Item = Cmd> + 'a {
+        set.iter().filter_map(|cmd| self.key_up_cmd(input, *cmd))
+    }
+
+    pub fn key_just_up_cmds<'a>(
+        &'a self,
+        input: &'a KeyboardState,
+        set: &'a [Cmd],
+    ) -> impl Iterator<Item = Cmd> + 'a {
+        set.iter()
+            .filter_map(|cmd| self.key_just_up_cmd(input, *cmd))
     }
 }

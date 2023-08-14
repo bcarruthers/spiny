@@ -1,7 +1,7 @@
 #![forbid(unsafe_code)]
 
 mod axis;
-mod cmd;
+mod input;
 mod gamepad;
 mod keyboard;
 mod mouse;
@@ -10,7 +10,7 @@ mod state;
 mod touch;
 
 pub use axis::*;
-pub use cmd::*;
+pub use input::*;
 pub use gamepad::*;
 pub use keyboard::*;
 pub use mouse::*;

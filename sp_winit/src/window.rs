@@ -1,6 +1,5 @@
 use std::{time::Duration, sync::{Mutex, Arc}, ops::DerefMut, rc::Rc};
 use glam::UVec2;
-use sp_input::MouseEvent;
 use winit::{
     event::*,
     event_loop::ControlFlow
@@ -70,11 +69,8 @@ fn handle_event<H: WindowHandler>(
             if let Some(event) = super::convert::convert_window_event(&event) {
                 // Audio requires user interaction for web
                 let interacting =
-                    match event {
-                        sp_input::WindowEvent::KeyboardInput(_) |
-                        sp_input::WindowEvent::Mouse(MouseEvent::MouseWheel(_)) |
-                        sp_input::WindowEvent::Mouse(MouseEvent::MouseInput(_)) |
-                        sp_input::WindowEvent::Touch(_) => true,
+                    match &event {
+                        sp_input::WindowEvent::Input(event) => event.is_interacting(),
                         _ => false,
                     };
                 if interacting {

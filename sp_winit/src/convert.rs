@@ -208,9 +208,9 @@ pub fn convert_device_event(event: &winit::event::DeviceEvent) -> Option<WindowE
     match event {
         winit::event::DeviceEvent::Added => None,
         winit::event::DeviceEvent::Removed => None,
-        winit::event::DeviceEvent::MouseMotion { delta } => Some(WindowEvent::Mouse(MouseEvent::MouseMoved(
+        winit::event::DeviceEvent::MouseMotion { delta } => Some(WindowEvent::Input(InputEvent::Mouse(MouseEvent::MouseMoved(
             Vec2::new(delta.0 as f32, delta.1 as f32),
-        ))),
+        )))),
         winit::event::DeviceEvent::MouseWheel { delta: _ } =>
             // Ignore event here to avoid duplicate with window event
             None,
@@ -242,23 +242,23 @@ pub fn convert_window_event(event: &winit::event::WindowEvent) -> Option<WindowE
         } => {
             //log::info!("Key: {:?}", input);
             input.virtual_keycode.map(|key| {
-                WindowEvent::KeyboardInput(KeyboardEvent {
+                WindowEvent::Input(InputEvent::Keyboard(KeyboardEvent {
                     state: convert_element_state(input.state),
                     key: convert_virtual_key_code(key),
-                })
+                }))
             })
         },
-        winit::event::WindowEvent::ModifiersChanged(state) => Some(WindowEvent::ModifiersChanged(
-            ModifiersState::from_bits(state.bits()).unwrap(),
+        winit::event::WindowEvent::ModifiersChanged(state) => Some(WindowEvent::Input(InputEvent::ModifiersChanged(
+            ModifiersState::from_bits(state.bits()).unwrap()),
         )),
         winit::event::WindowEvent::CursorMoved {
             device_id: _,
             position,
             modifiers: _,
-        } => Some(WindowEvent::Mouse(MouseEvent::CursorMoved(IVec2::new(
+        } => Some(WindowEvent::Input(InputEvent::Mouse(MouseEvent::CursorMoved(IVec2::new(
             position.x as i32,
             position.y as i32,
-        )))),
+        ))))),
         winit::event::WindowEvent::CursorEntered { device_id: _ } => None,
         winit::event::WindowEvent::CursorLeft { device_id: _ } => None,
         winit::event::WindowEvent::MouseWheel {
@@ -266,16 +266,16 @@ pub fn convert_window_event(event: &winit::event::WindowEvent) -> Option<WindowE
             delta,
             phase: _,
             modifiers: _,
-        } => Some(WindowEvent::Mouse(MouseEvent::MouseWheel(convert_scroll_delta(delta)))),
+        } => Some(WindowEvent::Input(InputEvent::Mouse(MouseEvent::MouseWheel(convert_scroll_delta(delta))))),
         winit::event::WindowEvent::MouseInput {
             device_id: _,
             state,
             button,
             modifiers: _,
-        } => Some(WindowEvent::Mouse(MouseEvent::MouseInput(MouseButtonEvent {
+        } => Some(WindowEvent::Input(InputEvent::Mouse(MouseEvent::MouseInput(MouseButtonEvent {
             button: convert_mouse_button(*button),
             state: convert_element_state(*state),
-        }))),
+        })))),
         winit::event::WindowEvent::TouchpadPressure {
             device_id: _,
             pressure: _,
@@ -287,11 +287,11 @@ pub fn convert_window_event(event: &winit::event::WindowEvent) -> Option<WindowE
             value: _,
         } => None,
         winit::event::WindowEvent::Touch(touch) => 
-            Some(WindowEvent::Touch(TouchEvent {
+            Some(WindowEvent::Input(InputEvent::Touch(TouchEvent {
                 phase: convert_touch_phase(touch.phase),
                 pos: Vec2::new(touch.location.x as f32, touch.location.y as f32),
                 id: touch.id
-            })),
+            }))),
         winit::event::WindowEvent::Resized(size) => {
             Some(WindowEvent::Resized(UVec2::new(size.width, size.height)))
         }

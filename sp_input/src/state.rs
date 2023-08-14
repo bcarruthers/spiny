@@ -1,15 +1,32 @@
 use glam::*;
 use crate::*;
 
-pub enum WindowEvent {
-    Closing,
-    Resized(UVec2),
-    ScaleFactorChanged(f32),
-    KeyboardInput(KeyboardEvent),
+pub enum InputEvent {
+    Keyboard(KeyboardEvent),
     ModifiersChanged(ModifiersState),
     Mouse(MouseEvent),
     Touch(TouchEvent),
     Gamepad(GamepadEvent),
+}
+
+impl InputEvent {
+    pub fn is_interacting(&self) -> bool {
+        match self {
+            InputEvent::Keyboard(_) |
+            InputEvent::Gamepad(_) |
+            InputEvent::Mouse(MouseEvent::MouseWheel(_)) |
+            InputEvent::Mouse(MouseEvent::MouseInput(_)) |
+            InputEvent::Touch(_) => true,
+            _ => false,
+        }
+    }
+}
+
+pub enum WindowEvent {
+    Closing,
+    Resized(UVec2),
+    Input(InputEvent),
+    ScaleFactorChanged(f32),
     PasteFromClipboard(String),
     FullScreenChanged(bool),
 }
@@ -17,10 +34,7 @@ pub enum WindowEvent {
 impl WindowEvent {
     pub fn is_interacting(&self) -> bool {
         match self {
-            WindowEvent::KeyboardInput(_) |
-            WindowEvent::Mouse(MouseEvent::MouseWheel(_)) |
-            WindowEvent::Mouse(MouseEvent::MouseInput(_)) |
-            WindowEvent::Touch(_) => true,
+            WindowEvent::Input(event) => event.is_interacting(),
             _ => false,
         }
     }
@@ -28,10 +42,7 @@ impl WindowEvent {
 
 #[derive(Clone)]
 pub struct WindowState {
-    keyboard: KeyboardState,
-    mouse: MouseState,
-    touch: TouchState,
-    gamepad: GamepadState,
+    input: InputState,
     size: UVec2,
     scale: f32,
     fullscreen: bool,
@@ -42,10 +53,7 @@ pub struct WindowState {
 impl WindowState {
     pub fn new() -> Self {
         Self {
-            keyboard: Default::default(),
-            mouse: Default::default(),
-            touch: Default::default(),
-            gamepad: Default::default(),
+            input: Default::default(),
             size: UVec2::ZERO,
             scale: 1.0,
             fullscreen: false,
@@ -62,16 +70,8 @@ impl WindowState {
         }
     }
 
-    pub fn keyboard(&self) -> &KeyboardState {
-        &self.keyboard
-    }
-
-    pub fn mouse(&self) -> &MouseState {
-        &self.mouse
-    }
-
-    pub fn touch(&self) -> &TouchState {
-        &self.touch
+    pub fn input(&self) -> &InputState {
+        &self.input
     }
 
     pub fn size(&self) -> UVec2 {
@@ -92,22 +92,22 @@ impl WindowState {
 
     pub fn norm_cursor_pos(&self) -> Vec2 {
         let scale = 1.0f32 / self.size.x.min(self.size.y) as f32;
-        let x = self.mouse.cursor_pos().x as f32 * scale;
-        let y = self.mouse.cursor_pos().y as f32 * scale;
+        let x = self.input.mouse().cursor_pos().x as f32 * scale;
+        let y = self.input.mouse().cursor_pos().y as f32 * scale;
         Vec2::new(x, y)
     }
 
     pub fn norm_cursor_delta(&self) -> Vec2 {
         let scale = 1.0f32 / self.size.x.min(self.size.y) as f32;
-        let dx = -self.mouse.cursor_delta().x as f32 * scale;
-        let dy = -self.mouse.cursor_delta().y as f32 * scale;
+        let dx = -self.input.mouse().cursor_delta().x as f32 * scale;
+        let dy = -self.input.mouse().cursor_delta().y as f32 * scale;
         Vec2::new(dx, dy)
     }
 
     pub fn norm_mouse_delta(&self) -> Vec2 {
         let scale = 1.0f32 / self.size.x.min(self.size.y) as f32;
-        let dx = -self.mouse.delta().x as f32 * scale;
-        let dy = -self.mouse.delta().y as f32 * scale;
+        let dx = -self.input.mouse().delta().x as f32 * scale;
+        let dy = -self.input.mouse().delta().y as f32 * scale;
         Vec2::new(dx, dy)
     }
 
@@ -116,8 +116,7 @@ impl WindowState {
     }
 
     pub fn clear_events(&mut self) {
-        self.keyboard.clear_events();
-        self.mouse.clear_events();
+        self.input.clear_events();
         self.closing = false;
         self.clipboard_data = None;
     }
@@ -133,23 +132,15 @@ impl WindowState {
                 log::debug!("Scale factor changed: {}", scale);
                 self.scale = scale
             }
-            WindowEvent::KeyboardInput(event) => {
-                //log::info!("Key {:?}: {:?}", event.state, event.key);
-                self.keyboard.push_event(event)
+            WindowEvent::Input(event) => {
+                self.input.apply(event, self.size);
             }
-            WindowEvent::ModifiersChanged(modifiers) => {
-                //log::info!("Modifiers changed: {:?}", modifiers);
-                self.keyboard.push_modifiers(modifiers)
-            }
-            WindowEvent::Mouse(event) => self.mouse.update(event, self.size),
-            WindowEvent::Touch(event) => self.touch.update(&event, self.size),
-            WindowEvent::Gamepad(event) => self.gamepad.update(&event, self.size),
             WindowEvent::PasteFromClipboard(s) => self.clipboard_data = Some(s),
             WindowEvent::FullScreenChanged(fullscreen) => self.fullscreen = fullscreen,
         }
     }
 
     pub fn flush(&mut self) {
-        self.keyboard.flush();
+        self.input.flush();
     }
 }
