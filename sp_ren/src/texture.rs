@@ -44,8 +44,8 @@ impl Texture {
             image,
             wgpu::ImageDataLayout {
                 offset: 0,
-                bytes_per_row: NonZeroU32::new(4 * image.width()),
-                rows_per_image: NonZeroU32::new(image.height()),
+                bytes_per_row: Some(4 * image.width()),
+                rows_per_image: Some(image.height()),
             },
             wgpu::Extent3d {
                 width: image.width(),

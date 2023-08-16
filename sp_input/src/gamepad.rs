@@ -119,7 +119,7 @@ impl GamepadState {
     }
 
     pub fn update(&mut self, event: &GamepadEvent) {
-        log::info!("Gamepad: {:?}", event);
+        //log::info!("Gamepad: {:?}", event);
         match event.ty {
             GamepadEventType::ButtonPressed(button, _) => {
                 self.just_pressed[button as usize] = true;

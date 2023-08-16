@@ -11,3 +11,4 @@ pub mod range;
 pub mod ray;
 pub mod xxhash;
 pub mod interp;
+pub mod vec;

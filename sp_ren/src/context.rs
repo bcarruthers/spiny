@@ -15,6 +15,17 @@ fn default_backends() -> wgpu::Backends {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct GraphicsError {
+    pub message: String,
+}
+
+impl std::fmt::Display for GraphicsError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}: {}", self, self.message)
+    }
+}
+
 pub struct GraphicsContext {
     pub surface: wgpu::Surface,
     pub device: wgpu::Device,
@@ -26,12 +37,14 @@ impl GraphicsContext {
     pub async fn new(
         window: &winit::window::Window,
         backends: Option<wgpu::Backends>,
-    ) -> Self {
+    ) -> Result<Self, GraphicsError> {
         let size = UVec2::new(window.inner_size().width, window.inner_size().height);
 
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
         let backends = backends.unwrap_or_else(default_backends);
+        log::debug!("Creating graphics context for {:?}", backends);
+
         let desc = wgpu::InstanceDescriptor {
             backends,
             ..Default::default()
@@ -40,8 +53,11 @@ impl GraphicsContext {
         // log::trace!("Created graphics device, adapters: {:?}",
         //     instance.enumerate_adapters(backends).collect::<Vec<_>>());
 
-        let surface = unsafe { instance.create_surface(window).expect("Could not create surface") };
-        log::trace!("Created surface {:?}", surface);
+        let surface = unsafe { instance.create_surface(window) }
+            .map_err(|e| GraphicsError {
+                message: format!("Could not create surface: {:?}", e),
+            })?;
+        log::debug!("Created {:?}", surface);
 
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -50,8 +66,10 @@ impl GraphicsContext {
                 force_fallback_adapter: false,
             })
             .await
-            .expect(&format!("Could not create adapter for {:?}", backends));
-        log::trace!("Created adapter {:?}", adapter);
+            .ok_or_else(|| GraphicsError {
+                message: format!("Could not create adapter for {:?}", backends),
+            })?;
+        log::debug!("Created {:?}", adapter);
 
         let (device, queue) = adapter
             .request_device(
@@ -67,8 +85,10 @@ impl GraphicsContext {
                 None, // Trace path
             )
             .await
-            .expect("Could not create graphics device");
-        log::trace!("Created device {:?}", device);
+            .map_err(|e| GraphicsError {
+                message: format!("Could not create device: {:?}", e),
+            })?;
+        log::debug!("Created {:?}", device);
 
         // log::info!("Supported present modes: {:?}", surface.get_supported_present_modes(&adapter));
         // log::info!("Supported formats: {:?}", surface.get_supported_formats(&adapter));
@@ -82,15 +102,15 @@ impl GraphicsContext {
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
             view_formats: vec![],
         };
-        log::trace!("Configuring surface {:?}", config);
+        log::debug!("Configuring surface {:?}", config);
         surface.configure(&device, &config);
 
-        Self {
+        Ok(Self {
             surface,
             device,
             queue,
             config,
-        }
+        })
     }
 
     pub fn size(&self) -> UVec2 {

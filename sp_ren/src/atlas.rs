@@ -1,8 +1,8 @@
-use std::{io::Read, path::PathBuf};
+use std::{io::Read, path::PathBuf, fmt::Display};
 
 use glam::{IVec2, Vec2, UVec2};
 use indexmap::IndexMap;
-use image::{RgbaImage, DynamicImage};
+use image::{RgbaImage, DynamicImage, ImageError};
 use sp_asset::{archive::FileArchive, AssetRef, AssetId};
 use sp_draw::{AtlasDef, AtlasEntry, AtlasEntryBounds};
 use sp_math::range::{IRange2, Range2};
@@ -30,6 +30,21 @@ pub fn copy_image(dest: &mut RgbaImage, src: &RgbaImage, rect: &IRange2, padding
             let sy = (y - offset.y).clamp(0, h as i32 - 1);
             let pixel = src.get_pixel(sx as u32, sy as u32);
             *dest.get_pixel_mut(x as u32, y as u32) = *pixel;
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum TextureAtlasError {
+    ImageError(ImageError),
+    PackError, // TODO
+}
+
+impl Display for TextureAtlasError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TextureAtlasError::ImageError(err) => write!(f, "Image error: {}", err),
+            TextureAtlasError::PackError => write!(f, "Pack error"),
         }
     }
 }
@@ -187,19 +202,21 @@ impl TextureAtlas {
         filter: wgpu::FilterMode,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-    ) -> Option<TextureAtlas> {
-        load_texture_atlas_images(archive, paths, atlas_size, padding).map(|(desc, image)| {
-            let texture = super::texture::Texture::from_rgba_image(
-                device,
-                queue,
-                &image,
-                wgpu::TextureFormat::Rgba8UnormSrgb,
-                filter,
-                None,
-                Some("atlas"),
-            )
-            .unwrap();
-            Self { desc, texture }
-        })
+    ) -> Result<TextureAtlas, TextureAtlasError> {
+        match load_texture_atlas_images(archive, paths, atlas_size, padding) {
+            Some((desc, image)) => {
+                let texture = super::texture::Texture::from_rgba_image(
+                    device,
+                    queue,
+                    &image,
+                    wgpu::TextureFormat::Rgba8UnormSrgb,
+                    filter,
+                    None,
+                    Some("atlas"),
+                ).map_err(|err| TextureAtlasError::ImageError(err))?;
+                Ok(Self { desc, texture })
+            },
+            None => Err(TextureAtlasError::PackError),
+        }
     }
 }
