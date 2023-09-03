@@ -3,10 +3,12 @@ use glam::{IVec2, UVec2};
 use sp_asset::AssetId;
 use sp_math::color::IRgba;
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Copy, Debug)]
 pub enum NavigateCmd {
-    Previous,
-    Next,
+    Left,
+    Right,
+    Up,
+    Down,
     First,
     Last,
     Invoke,
@@ -15,10 +17,16 @@ pub enum NavigateCmd {
     Release,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy, Debug)]
 pub enum CanvasOrigin {
     Window,
     Cursor,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum UiWidgetEventType {
+    Press,
+    Release,
 }
 
 #[derive(Clone)]
@@ -68,6 +76,26 @@ impl<Cmd> TileCanvas<Cmd> {
             CanvasOrigin::Cursor => cursor_pos,
         };
         IRange2::sized(pos, size)
+    }
+
+    pub fn on(self, event: UiWidgetEventType, cmd: Cmd) -> Self {
+        match event {
+            UiWidgetEventType::Press => Self {
+                on_press: Some(cmd),
+                ..self
+            },
+            UiWidgetEventType::Release => Self {
+                on_release: Some(cmd),
+                ..self
+            },
+        }
+    }
+}
+
+impl<Cmd: Clone> TileCanvas<Cmd> {
+    pub fn on_any(self, events: &[UiWidgetEventType], cmd: Cmd) -> Self {
+        events.iter().fold(self, |widget, &event|
+            widget.on(event, cmd.clone()))
     }
 }
 
@@ -201,6 +229,7 @@ pub struct UiWidget<Cmd> {
     pub on_press: Option<Cmd>,
     pub on_release: Option<Cmd>,
     pub flags: UiButtonFlags,
+    pub cell_pos: Option<IVec2>,
 }
 
 impl<Cmd> Default for UiWidget<Cmd> {
@@ -209,15 +238,16 @@ impl<Cmd> Default for UiWidget<Cmd> {
             on_press: None,
             on_release: None,
             flags: UiButtonFlags::NONE,
+            cell_pos: None,
         }
     }
 }
 
 impl<Cmd> UiWidget<Cmd> {
     pub fn can_hover(&self) -> bool {
-        self.on_press.is_some()
-            || self.on_release.is_some()
-            || self.flags.contains(UiButtonFlags::HOVERABLE)
+        self.on_press.is_some() ||
+        self.on_release.is_some() ||
+        self.flags.contains(UiButtonFlags::HOVERABLE)
     }
 
     pub fn press(cmd: Cmd) -> Self {
@@ -233,9 +263,29 @@ impl<Cmd> UiWidget<Cmd> {
             ..Default::default()
         }
     }
+
+    pub fn on(self, event: UiWidgetEventType, cmd: Cmd) -> Self {
+        match event {
+            UiWidgetEventType::Press => Self {
+                on_press: Some(cmd),
+                ..self
+            },
+            UiWidgetEventType::Release => Self {
+                on_release: Some(cmd),
+                ..self
+            },
+        }
+    }
 }
 
-#[derive(Clone)]
+impl<Cmd: Clone> UiWidget<Cmd> {
+    pub fn on_any(self, events: &[UiWidgetEventType], cmd: Cmd) -> Self {
+        events.iter().fold(self, |widget, &event|
+            widget.on(event, cmd.clone()))
+    }
+}
+
+#[derive(Clone, Copy)]
 pub struct UiStyles {
     pub normal: Style,
     pub hover: Style,
