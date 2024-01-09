@@ -8,7 +8,7 @@ glam = { version = "0.20.2" }
 indexmap = { version = "1.9.1" }
 pollster = "0.2.5"
 image = { version = "0.24.0", default-features = false, features = ["png"] }
-wgpu = { version = "0.17.0", features = [ "webgl" ] }
+wgpu = { version = "0.18.0", features = [ "webgl" ] }
 winit = { version = "0.27.5", default-features = false, features = ["wayland"] }
 bytemuck = { version = "1.7.3", features = [ "derive" ] }
 base64 = "0.13.0"

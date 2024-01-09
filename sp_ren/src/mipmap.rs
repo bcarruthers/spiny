@@ -1,4 +1,4 @@
-use std::{borrow::Cow, num::NonZeroU32};
+use std::borrow::Cow;
 
 pub struct MipmapGenerator {
     #[allow(dead_code)]
@@ -97,10 +97,12 @@ impl MipmapGenerator {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::WHITE),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     },
                 })],
                 depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
             });
             rpass.set_pipeline(&self.pipeline);
             rpass.set_bind_group(0, &bind_group, &[]);

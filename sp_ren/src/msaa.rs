@@ -52,7 +52,7 @@ impl MultisampleFramebuffer {
                     load,
                     // Storing pre-resolve MSAA data is unnecessary if it isn't used later.
                     // On tile-based GPU, avoid store can reduce your app's memory footprint.
-                    store: false,
+                    store: wgpu::StoreOp::Discard,
                 },
             }
         } else {
@@ -61,7 +61,7 @@ impl MultisampleFramebuffer {
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load,
-                    store: true,
+                    store: wgpu::StoreOp::Store,
                 },
             }
         }

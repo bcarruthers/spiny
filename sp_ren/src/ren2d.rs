@@ -1,4 +1,4 @@
-use std::{sync::{Arc, Mutex}};
+use std::sync::{Arc, Mutex};
 use glam::UVec2;
 use sp_draw::*;
 use sp_asset::{archive::FileArchive, AssetRef};
@@ -112,10 +112,12 @@ impl Renderer2d {
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                    store: true,
+                    store: wgpu::StoreOp::Store,
                 },
             })],
             depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
         });
         // Main world viewport covering whole screen
         self.bg_ren.draw(&mut render_pass);
