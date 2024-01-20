@@ -5,8 +5,8 @@ use sp_asset::{archive::FileArchive, AssetRef};
 use crate::{quad::QuadRenderer, *};
 use wgpu::{CommandEncoder, TextureView};
 
-pub struct Renderer2d {
-    ctx: GraphicsContext,
+pub struct Renderer2d<'window> {
+    ctx: GraphicsContext<'window>,
     tex_atlas: TextureAtlas,
     #[allow(dead_code)]
     shader: wgpu::ShaderModule,
@@ -15,9 +15,9 @@ pub struct Renderer2d {
     sample_count: u32,
 }
 
-impl Renderer2d {
+impl<'window> Renderer2d<'window> {
     pub fn new(
-        ctx: GraphicsContext,
+        ctx: GraphicsContext<'window>,
         assets: Arc<Mutex<FileArchive>>,
         shader_path: &str,
         bg_path: &str,

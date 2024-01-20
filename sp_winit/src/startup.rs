@@ -14,7 +14,7 @@ impl Startup {
         log::debug!("Creating window");
 
         // Create window and graphics context
-        let event_loop = EventLoop::new();
+        let event_loop = EventLoop::new().unwrap();
         let window = WindowBuilder::new()
             .with_title(title)
             // Note winit takes control of web canvas size

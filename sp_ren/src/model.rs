@@ -3,14 +3,84 @@ use std::ops::Range;
 use crate::binding::{TextureBinding, TransformBinding};
 use crate::instance::{Instance, InstanceRaw};
 use crate::{texture, TextureAtlas};
-use glam::Mat4;
+use glam::{Mat4, Quat, Vec3};
 use indexmap::IndexMap;
 use sp_asset::AssetId;
+use wgpu::BindGroupLayout;
 use wgpu::util::DeviceExt;
+
+pub struct Node {
+
+}
+
+pub enum Interpolation {
+    Linear,
+    Step,
+    CubicSpline,
+}
+
+impl Default for Interpolation {
+    fn default() -> Self {
+        Interpolation::Linear
+    }
+}
+
+pub enum Keyframes {
+    Rotation(Vec<Quat>),
+    Translation(Vec<Vec3>),
+    Scale(Vec<Vec3>),
+    Weights(Vec<f32>),
+}
+
+pub struct AnimationSampler {
+    pub interpolation: Interpolation,
+    pub timestamps: Vec<f32>,
+    pub keyframes: Keyframes,
+}
+
+pub struct AnimationChannel {
+    pub sampler: AnimationSampler,
+    pub target: usize,
+}
+
+pub struct AnimationClip {
+    pub duration: f32,
+    pub channels: Vec<AnimationChannel>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MaterialAlphaMode {
+    Opaque,
+    Mask,
+    Blend,
+}
+
+impl Default for MaterialAlphaMode {
+    fn default() -> Self {
+        MaterialAlphaMode::Opaque
+    }
+}
+
+pub struct MaterialDescriptor {
+    pub double_sided: bool,
+    pub alpha_mode: MaterialAlphaMode,
+    pub alpha_cutoff: Option<f32>,
+}
+
+impl Default for MaterialDescriptor {
+    fn default() -> Self {
+        Self {
+            double_sided: false,
+            alpha_mode: MaterialAlphaMode::Opaque,
+            alpha_cutoff: None,
+        }
+    }
+}
 
 pub struct Material {
     pub emissive_texture: Option<texture::Texture>,
     pub binding: TextureBinding,
+    pub descriptor: MaterialDescriptor,
 }
 
 pub struct Primitive {
@@ -70,6 +140,7 @@ impl Primitive {
         }
     }
 }
+
 pub struct Mesh {
     pub primitives: Vec<Primitive>,
 }
@@ -77,6 +148,7 @@ pub struct Mesh {
 pub struct Model {
     pub meshes: Vec<Mesh>,
     pub materials: Vec<Material>,
+    pub animations: Vec<AnimationClip>,
 }
 
 impl Model {
@@ -86,6 +158,7 @@ impl Model {
             materials: vec![Material {
                 emissive_texture: None,
                 binding: TextureBinding::new(device, atlas.texture()),
+                descriptor: MaterialDescriptor::default(),
             }],
             meshes: vec![Mesh {
                 primitives: vec![Primitive::from_buffers(
@@ -118,6 +191,7 @@ impl Model {
                     &[0, 1, 2, 0, 2, 3, 0, 2, 1, 0, 3, 2],
                 )],
             }],
+            animations: Vec::new(),
         }
     }
 }
@@ -151,6 +225,24 @@ impl ModelCache {
     }
 }
 
+#[derive(Hash, PartialEq, Eq, Clone, Copy)]
+struct RenderPipelineKey {
+    alpha_mode: MaterialAlphaMode,
+    alpha_cutoff: Option<u32>,
+    double_sided: bool,
+}
+
+impl RenderPipelineKey {
+    fn from_material(material: &Material) -> Self {
+        Self {
+            alpha_mode: material.descriptor.alpha_mode,
+            // Quantize cutoff
+            alpha_cutoff: material.descriptor.alpha_cutoff.map(|x| (x * 65535.0) as u32),
+            double_sided: material.descriptor.double_sided,
+        }
+    }
+}
+
 #[derive(Default, Clone)]
 pub struct ModelInstanceRun {
     pub model_id: AssetId,
@@ -159,10 +251,13 @@ pub struct ModelInstanceRun {
 }
 
 pub struct ModelRenderer {
+    format: wgpu::TextureFormat,
+    multisample_count: u32,
     models: ModelCache,
+    shader: wgpu::ShaderModule,
     //tex_binding: TextureBinding,
     camera_binding: TransformBinding,
-    render_pipeline: wgpu::RenderPipeline,
+    render_pipelines: IndexMap<RenderPipelineKey, wgpu::RenderPipeline>,
     runs: Vec<ModelInstanceRun>,
     instances: Vec<InstanceRaw>,
     #[allow(dead_code)]
@@ -172,7 +267,7 @@ pub struct ModelRenderer {
 impl ModelRenderer {
     pub fn new(
         device: &wgpu::Device,
-        shader: &wgpu::ShaderModule,
+        shader: wgpu::ShaderModule,
         format: wgpu::TextureFormat,
         models: ModelCache,
         multisample_count: u32,
@@ -186,18 +281,38 @@ impl ModelRenderer {
             mapped_at_creation: false,
         });
 
+        Self {
+            format,
+            multisample_count,
+            models,
+            shader,
+            runs: Vec::new(),
+            instances: Vec::new(),
+            instance_buffer,
+            camera_binding,
+            render_pipelines: IndexMap::new(),
+        }
+    }
+
+    fn create_pipeline(
+        device: &wgpu::Device,
+        shader: &wgpu::ShaderModule,
+        format: wgpu::TextureFormat,
+        multisample_count: u32,
+        camera_layout: &BindGroupLayout,
+        key: RenderPipelineKey,
+    ) -> wgpu::RenderPipeline {
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("model_pipeline_layout"),
                 bind_group_layouts: &[
                     &TextureBinding::create_layout(device, wgpu::TextureViewDimension::D2),
-                    &camera_binding.layout,
+                    camera_layout,
                 ],
                 push_constant_ranges: &[],
             });
-
         log::trace!("Creating model pipeline {:?}", render_pipeline_layout);
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("model_pipeline"),
             layout: Some(&render_pipeline_layout),
             vertex: wgpu::VertexState {
@@ -256,7 +371,7 @@ impl ModelRenderer {
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
+                cull_mode: if key.double_sided { None } else { Some(wgpu::Face::Back) },
                 // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
                 polygon_mode: wgpu::PolygonMode::Fill,
                 // Requires Features::DEPTH_CLIP_CONTROL
@@ -279,15 +394,7 @@ impl ModelRenderer {
             // If the pipeline will be used with a multiview render pass, this
             // indicates how many array layers the attachments will have.
             multiview: None,
-        });
-        Self {
-            models,
-            runs: Vec::new(),
-            instances: Vec::new(),
-            instance_buffer,
-            camera_binding,
-            render_pipeline,
-        }
+        })
     }
 
     pub fn count(&self) -> usize {
@@ -315,29 +422,48 @@ impl ModelRenderer {
     //     self.instances.extend_from_slice(instances);
     // }
 
-    pub fn update(&mut self, queue: &wgpu::Queue, view_proj: Mat4) {
+    pub fn update(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, view_proj: Mat4) {
         self.camera_binding.update(queue, view_proj);
         queue.write_buffer(
             &self.instance_buffer,
             0,
             bytemuck::cast_slice(&self.instances),
         );
+        // Create material pipelines
+        for run in self.runs.iter() {
+            for (_primitive, material) in self.models.iter_primitives(run.model_id) {
+                let key = RenderPipelineKey::from_material(material);
+                self.render_pipelines.entry(key).or_insert_with(|| {
+                    Self::create_pipeline(
+                        device,
+                        &self.shader,
+                        self.format,
+                        self.multisample_count,
+                        &self.camera_binding.layout,
+                        key,
+                    )
+                });
+            }
+        }
     }
 
     pub fn draw<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
-        render_pass.set_pipeline(&self.render_pipeline);
         render_pass.set_bind_group(1, &self.camera_binding.group, &[]);
         render_pass.set_vertex_buffer(4, self.instance_buffer.slice(..));
         for run in self.runs.iter() {
             for (primitive, material) in self.models.iter_primitives(run.model_id) {
-                render_pass.set_bind_group(0, &material.binding.group, &[]);
-                render_pass.set_vertex_buffer(0, primitive.positions.slice(..));
-                render_pass.set_vertex_buffer(1, primitive.normals.slice(..));
-                render_pass.set_vertex_buffer(2, primitive.colors.slice(..));
-                render_pass.set_vertex_buffer(3, primitive.tex_coords.slice(..));
-                render_pass
-                    .set_index_buffer(primitive.indices.slice(..), wgpu::IndexFormat::Uint32);
-                render_pass.draw_indexed(0..primitive.index_count, 0, run.range.clone());
+                let key = RenderPipelineKey::from_material(material);
+                if let Some(render_pipeline) = self.render_pipelines.get(&key) {
+                    render_pass.set_pipeline(render_pipeline);
+                    render_pass.set_bind_group(0, &material.binding.group, &[]);
+                    render_pass.set_vertex_buffer(0, primitive.positions.slice(..));
+                    render_pass.set_vertex_buffer(1, primitive.normals.slice(..));
+                    render_pass.set_vertex_buffer(2, primitive.colors.slice(..));
+                    render_pass.set_vertex_buffer(3, primitive.tex_coords.slice(..));
+                    render_pass
+                        .set_index_buffer(primitive.indices.slice(..), wgpu::IndexFormat::Uint32);
+                    render_pass.draw_indexed(0..primitive.index_count, 0, run.range.clone());
+                }
             }
         }
     }

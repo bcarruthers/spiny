@@ -121,6 +121,16 @@ impl ops::Sub<i32> for IRange1 {
     }
 }
 
+impl ops::Mul<i32> for IRange1 {
+    type Output = Self;
+    fn mul(self, rhs: i32) -> Self {
+        Self {
+            min: self.min * rhs,
+            max: self.max * rhs,
+        }
+    }
+}
+
 impl ops::Div<i32> for IRange1 {
     type Output = Self;
     fn div(self, rhs: i32) -> Self {
@@ -248,6 +258,16 @@ impl ops::Sub<f32> for Range1 {
         Self {
             min: self.min - rhs,
             max: self.max - rhs,
+        }
+    }
+}
+
+impl ops::Mul<f32> for Range1 {
+    type Output = Self;
+    fn mul(self, rhs: f32) -> Self {
+        Self {
+            min: self.min * rhs,
+            max: self.max * rhs,
         }
     }
 }

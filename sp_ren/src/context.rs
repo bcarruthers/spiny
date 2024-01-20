@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use glam::*;
 
 fn default_backends() -> wgpu::Backends {
@@ -26,16 +28,17 @@ impl std::fmt::Display for GraphicsError {
     }
 }
 
-pub struct GraphicsContext {
-    pub surface: wgpu::Surface,
+pub struct GraphicsContext<'window> {
+    pub window: Arc<winit::window::Window>,
+    pub surface: wgpu::Surface<'window>,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     pub config: wgpu::SurfaceConfiguration,
 }
 
-impl GraphicsContext {
+impl<'window> GraphicsContext<'window> {
     pub async fn new(
-        window: &winit::window::Window,
+        window: Arc<winit::window::Window>,
         backends: Option<wgpu::Backends>,
     ) -> Result<Self, GraphicsError> {
         let size = UVec2::new(window.inner_size().width, window.inner_size().height);
@@ -53,7 +56,7 @@ impl GraphicsContext {
         // log::trace!("Created graphics device, adapters: {:?}",
         //     instance.enumerate_adapters(backends).collect::<Vec<_>>());
 
-        let surface = unsafe { instance.create_surface(window) }
+        let surface = instance.create_surface(window.clone())
             .map_err(|e| GraphicsError {
                 message: format!("Could not create surface: {:?}", e),
             })?;
@@ -76,10 +79,10 @@ impl GraphicsContext {
                 &wgpu::DeviceDescriptor {
                     label: None,
                     // Note web does not support POLYGON_MODE_LINE
-                    features: wgpu::Features::empty(),
+                    required_features: wgpu::Features::empty(),
                     // Make sure we use the texture resolution limits from the adapter,
                     // so we can support images the size of the swapchain.
-                    limits: wgpu::Limits::downlevel_webgl2_defaults()
+                    required_limits: wgpu::Limits::downlevel_webgl2_defaults()
                         .using_resolution(adapter.limits()),
                 },
                 None, // Trace path
@@ -101,6 +104,7 @@ impl GraphicsContext {
             present_mode: wgpu::PresentMode::Fifo,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
             view_formats: vec![],
+            desired_maximum_frame_latency: 2,
         };
         log::debug!("Configuring surface {:?}", config);
         surface.configure(&device, &config);
@@ -110,6 +114,7 @@ impl GraphicsContext {
             device,
             queue,
             config,
+            window,
         })
     }
 
