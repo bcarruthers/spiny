@@ -1,8 +1,9 @@
 use std::ops::Range;
 
-use crate::binding::{TextureBinding, TransformBinding};
+use crate::binding::TextureBinding;
+use crate::camera::CameraBinding;
 use crate::instance::{Instance, InstanceRaw};
-use crate::{texture, TextureAtlas};
+use crate::{texture, TextureAtlas, CameraParams};
 use glam::{Mat4, Quat, Vec3};
 use indexmap::IndexMap;
 use sp_asset::AssetId;
@@ -256,7 +257,7 @@ pub struct ModelRenderer {
     models: ModelCache,
     shader: wgpu::ShaderModule,
     //tex_binding: TextureBinding,
-    camera_binding: TransformBinding,
+    camera_binding: CameraBinding,
     render_pipelines: IndexMap<RenderPipelineKey, wgpu::RenderPipeline>,
     runs: Vec<ModelInstanceRun>,
     instances: Vec<InstanceRaw>,
@@ -272,7 +273,7 @@ impl ModelRenderer {
         models: ModelCache,
         multisample_count: u32,
     ) -> Self {
-        let camera_binding = TransformBinding::new(device, Mat4::IDENTITY);
+        let camera_binding = CameraBinding::new(device, 1);
 
         let instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("model_instance_buffer"),
@@ -422,8 +423,14 @@ impl ModelRenderer {
     //     self.instances.extend_from_slice(instances);
     // }
 
-    pub fn update(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, view_proj: Mat4) {
-        self.camera_binding.update(queue, view_proj);
+    pub fn update(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, view: Mat4, proj: Mat4) {
+        self.camera_binding.update(queue, &[
+            CameraParams {
+                view,
+                proj,
+                ..Default::default()
+            }
+        ]);
         queue.write_buffer(
             &self.instance_buffer,
             0,
@@ -439,7 +446,7 @@ impl ModelRenderer {
                         &self.shader,
                         self.format,
                         self.multisample_count,
-                        &self.camera_binding.layout,
+                        self.camera_binding.layout(),
                         key,
                     )
                 });
@@ -448,7 +455,7 @@ impl ModelRenderer {
     }
 
     pub fn draw<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
-        render_pass.set_bind_group(1, &self.camera_binding.group, &[]);
+        render_pass.set_bind_group(1, &self.camera_binding.bind_group(0), &[]);
         render_pass.set_vertex_buffer(4, self.instance_buffer.slice(..));
         for run in self.runs.iter() {
             for (primitive, material) in self.models.iter_primitives(run.model_id) {

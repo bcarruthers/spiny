@@ -1,7 +1,56 @@
 use super::texture::*;
 use glam::*;
 use wgpu::util::DeviceExt;
+use std::marker::PhantomData;
 
+pub struct PodBuffer<U> {
+    pub uniform: PhantomData<U>,
+    pub layout_entry: wgpu::BindGroupLayoutEntry,
+    pub buffer: wgpu::Buffer,
+}
+
+impl<U: bytemuck::Pod> PodBuffer<U> {
+    pub fn new(
+        device: &wgpu::Device,
+        binding: u32,
+        visibility: wgpu::ShaderStages,
+        uniform: U
+    ) -> Self {
+        let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("block_transform_buffer"),
+            contents: bytemuck::cast_slice(&[uniform]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
+        let layout_entry = wgpu::BindGroupLayoutEntry {
+            binding,
+            visibility,
+            ty: wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Uniform,
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+            count: None,
+        };
+
+        Self {
+            uniform: PhantomData::default(),
+            layout_entry,
+            buffer,
+        }
+    }
+
+    pub fn as_bind_group_entry(&self) -> wgpu::BindGroupEntry {
+        wgpu::BindGroupEntry {
+            binding: self.layout_entry.binding,
+            resource: self.buffer.as_entire_binding()
+        }
+    }
+
+    pub fn write(&self, queue: &wgpu::Queue, uniform: U) {
+        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[uniform]));
+    }
+}
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct Mat4Uniform {
