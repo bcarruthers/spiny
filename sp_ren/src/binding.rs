@@ -119,19 +119,21 @@ pub struct TextureBinding {
 }
 
 impl TextureBinding {
-    pub fn create_layout(
+    pub fn create_layout_multisampled(
         device: &wgpu::Device,
         view_dimension: wgpu::TextureViewDimension,
+        multisampled: bool,
     ) -> wgpu::BindGroupLayout {
+        let filterable = !multisampled;
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[
                 wgpu::BindGroupLayoutEntry {
                     binding: 0,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Texture {
-                        multisampled: false,
+                        multisampled,
                         view_dimension,
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        sample_type: wgpu::TextureSampleType::Float { filterable },
                     },
                     count: None,
                 },
@@ -146,8 +148,15 @@ impl TextureBinding {
         })
     }
 
-    pub fn new(device: &wgpu::Device, texture: &Texture) -> Self {
-        let layout = Self::create_layout(device, wgpu::TextureViewDimension::D2);
+    pub fn create_layout(
+        device: &wgpu::Device,
+        view_dimension: wgpu::TextureViewDimension,
+    ) -> wgpu::BindGroupLayout {
+        Self::create_layout_multisampled(device, view_dimension, false)
+    }
+
+    pub fn new_multisampled(device: &wgpu::Device, texture: &Texture, multisampled: bool) -> Self {
+        let layout = Self::create_layout_multisampled(device, wgpu::TextureViewDimension::D2, multisampled);
         let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &layout,
             entries: &[
@@ -163,5 +172,9 @@ impl TextureBinding {
             label: Some("texture_bind_group"),
         });
         Self { layout, group }
+    }
+
+    pub fn new(device: &wgpu::Device, texture: &Texture) -> Self {
+        Self::new_multisampled(device, texture, false)
     }
 }

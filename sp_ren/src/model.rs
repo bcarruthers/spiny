@@ -208,6 +208,10 @@ impl ModelCache {
         }
     }
 
+    pub fn clear(&mut self) {
+        self.models.clear();
+    }
+
     pub fn add(&mut self, model_id: AssetId, model: Model) {
         self.models.insert(model_id, model);
     }
@@ -419,15 +423,24 @@ impl ModelRenderer {
         self.instances.push(instance);
     }
 
+    pub fn clear_models(&mut self) {
+        self.models.clear();
+    }
+
+    pub fn add_model(&mut self, model_id: AssetId, model: Model) {
+        self.models.add(model_id, model);
+    }
+
     // pub fn extend_instances_from_slice(&mut self, instances: &[InstanceRaw]) {
     //     self.instances.extend_from_slice(instances);
     // }
 
-    pub fn update(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, view: Mat4, proj: Mat4) {
+    pub fn update(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, view: Mat4, proj: Mat4, light_dir: Vec3) {
         self.camera_binding.update(queue, &[
             CameraParams {
                 view,
                 proj,
+                light_dir,
                 ..Default::default()
             }
         ]);

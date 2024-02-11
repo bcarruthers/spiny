@@ -24,7 +24,8 @@ impl QuadRenderer {
         multisample_count: u32,
         tex_bounds: Range2,
     ) -> Self {
-        let texture_binding = TextureBinding::new(&device, &texture);
+        let multisampled = multisample_count > 1;
+        let texture_binding = TextureBinding::new_multisampled(&device, &texture, multisampled);
         let camera_binding = TransformBinding::new(&device, Mat4::IDENTITY);
 
         let render_pipeline_layout =

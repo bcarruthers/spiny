@@ -1,4 +1,4 @@
-use glam::{Mat4, Vec3, Vec4};
+use glam::{Mat4, Vec3};
 
 use crate::binding::PodBuffer;
 
@@ -6,9 +6,12 @@ use crate::binding::PodBuffer;
 pub struct CameraParams {
     pub view: Mat4,
     pub proj: Mat4,
-    pub tint_color: [f32; 4],
+    pub ambient: [f32; 4],
+    pub diffuse: [f32; 4],
+    pub light_dir: Vec3,
     pub fog_color: [f32; 4],
     pub fog_depth: f32,
+    pub tint_color: [f32; 4],
 }
 
 impl Default for CameraParams {
@@ -16,9 +19,12 @@ impl Default for CameraParams {
         Self {
             view: Mat4::IDENTITY,
             proj: Mat4::IDENTITY,
-            tint_color: [1.0; 4],
+            ambient: [0.1, 0.1, 0.1, 1.0],
+            diffuse: [1.0, 1.0, 1.0, 1.0],
+            light_dir: Vec3::new(1.0, 2.0, -4.0).normalize(),
             fog_color: [0.025, 0.05, 0.1, 1.0],
             fog_depth: 0.0,
+            tint_color: [1.0; 4],
         }
     }
 }
@@ -42,19 +48,24 @@ struct GpuCameraParams {
     tint_color: [f32; 4],
 }
 
+impl GpuCameraParams {
+    pub fn from_params(camera: &CameraParams) -> Self {
+        Self {
+            view: camera.view.to_cols_array_2d(),
+            proj: camera.proj.to_cols_array_2d(),
+            ambient: camera.ambient,
+            diffuse: camera.diffuse,
+            light_dir: camera.light_dir.extend(1.0).to_array(),
+            fog_color: camera.fog_color,
+            fog_depth: [camera.fog_depth; 4],
+            tint_color: camera.tint_color,
+        }
+    }
+}
+
 impl Default for GpuCameraParams {
     fn default() -> Self {
-        let dir = Vec3::new(1.0, 2.0, -4.0).normalize();
-        Self {
-            view: Mat4::IDENTITY.to_cols_array_2d(),
-            proj: Mat4::IDENTITY.to_cols_array_2d(),
-            ambient: [0.1, 0.1, 0.1, 1.0],
-            diffuse: [1.0, 1.0, 1.0, 1.0],
-            light_dir: Vec4::new(dir.x, dir.y, dir.z, 1.0).to_array(),
-            fog_color: [0.025, 0.05, 0.1, 1.0],
-            fog_depth: [0.0, 0.0, 0.0, 40.0],
-            tint_color: [1.0, 1.0, 1.0, 1.0],
-        }
+        Self::from_params(&CameraParams::default())
     }
 }
 
@@ -110,14 +121,7 @@ impl CameraBinding {
     ) {
         for i in 0..cameras.len() {
             let camera = &cameras[i];
-            self.buffers[i].write(queue, GpuCameraParams {
-                view: camera.view.to_cols_array_2d(),
-                proj: camera.proj.to_cols_array_2d(),
-                fog_color: camera.fog_color,
-                fog_depth: [camera.fog_depth; 4],
-                tint_color: camera.tint_color,
-                ..Default::default()
-            });
+            self.buffers[i].write(queue, GpuCameraParams::from_params(camera));
         }
     }
 

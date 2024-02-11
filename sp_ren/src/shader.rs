@@ -17,7 +17,7 @@ pub fn load_shader(
         .read_string(path)
         .expect(&format!("Could not read shader {:?}", &name));
     device.create_shader_module(wgpu::ShaderModuleDescriptor {
-        label: Some(name.as_ref().clone()),
+        label: Some(name.as_ref()),
         source: wgpu::ShaderSource::Wgsl(Cow::Owned(str)),
     })
 }

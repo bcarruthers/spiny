@@ -56,13 +56,14 @@ impl Texture {
 
     pub fn create_depth(
         device: &wgpu::Device,
-        config: &wgpu::SurfaceConfiguration,
+        width: u32,
+        height: u32,
         sample_count: u32,
         label: &str,
     ) -> Self {
         let size = wgpu::Extent3d {
-            width: config.width,
-            height: config.height,
+            width,
+            height,
             depth_or_array_layers: 1,
         };
         let desc = wgpu::TextureDescriptor {
@@ -93,8 +94,8 @@ impl Texture {
             texture,
             view,
             sampler,
-            width: config.width,
-            height: config.height,
+            width,
+            height,
         }
     }
 
