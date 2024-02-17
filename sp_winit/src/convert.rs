@@ -336,10 +336,10 @@ pub fn convert_window_event(event: &winit::event::WindowEvent) -> Option<WindowE
         winit::event::WindowEvent::ThemeChanged(_) => None,
         winit::event::WindowEvent::Ime(_) => None,
         winit::event::WindowEvent::Occluded(_) => None,
-        winit::event::WindowEvent::ActivationTokenDone { serial, token } => todo!(),
-        winit::event::WindowEvent::TouchpadMagnify { device_id, delta, phase } => todo!(),
-        winit::event::WindowEvent::SmartMagnify { device_id } => todo!(),
-        winit::event::WindowEvent::TouchpadRotate { device_id, delta, phase } => todo!(),
+        winit::event::WindowEvent::ActivationTokenDone { serial: _, token: _ } => None,
+        winit::event::WindowEvent::TouchpadMagnify { device_id: _, delta: _, phase: _ } => None,
+        winit::event::WindowEvent::SmartMagnify { device_id: _ } => None,
+        winit::event::WindowEvent::TouchpadRotate { device_id: _, delta: _, phase: _ } => None,
         winit::event::WindowEvent::RedrawRequested => None,
     }
 }

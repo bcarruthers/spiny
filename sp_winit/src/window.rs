@@ -1,4 +1,4 @@
-use std::{time::Duration, sync::{Mutex, Arc}, ops::DerefMut, rc::Rc};
+use std::{time::Duration, sync::{Mutex, Arc}, ops::DerefMut};
 use glam::UVec2;
 use winit::event::*;
 use crate::clipboard::Clipboard;
@@ -70,7 +70,7 @@ fn handle_event<H: WindowHandler>(
         Event::WindowEvent {
             ref event,
             window_id,
-        } => {
+        } if window_id == window.id() => {
             if let Some(event) = super::convert::convert_window_event(&event) {
                 // Audio requires user interaction for web
                 let interacting =
@@ -145,7 +145,7 @@ fn handle_event<H: WindowHandler>(
 
 pub async fn run<H: 'static + WindowHandler>(
     handler: Arc<Mutex<H>>,
-    window: Rc<winit::window::Window>,
+    window: Arc<winit::window::Window>,
     event_loop: winit::event_loop::EventLoop<()>,
     start: instant::Instant,
     //enable_clipboard: bool,
@@ -171,7 +171,7 @@ pub async fn run<H: 'static + WindowHandler>(
 
     // Run main loop
     log::debug!("Starting main loop");
-    event_loop.run(move |event, target| {
+    let result = event_loop.run(move |event, target| {
         let time = (instant::Instant::now() - start).as_millis() as i64;
         // Handle window event
         let mut handler = handler.lock().unwrap();
@@ -190,4 +190,7 @@ pub async fn run<H: 'static + WindowHandler>(
             target.exit();
         }
     });
+    if let Err(err) = result {
+        log::error!("Error in main loop: {}", err);
+    }
 }

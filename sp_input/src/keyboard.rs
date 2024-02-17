@@ -587,6 +587,10 @@ impl KeyboardState {
         &self.presses
     }
 
+    pub fn modifiers(&self) -> ModifiersState {
+        self.modifiers
+    }
+
     pub fn any_down(&self, buttons: &[KeyPress]) -> bool {
         buttons.iter().any(|button| self.keys.down(button.code))
     }

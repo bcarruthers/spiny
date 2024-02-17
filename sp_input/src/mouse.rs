@@ -54,6 +54,10 @@ impl MouseState {
         self.delta
     }
 
+    pub fn wheel_delta(&self) -> Vec2 {
+        self.wheel_delta
+    }
+
     fn norm_pos(pos: Vec2, size: UVec2) -> Vec2 {
         let v = pos / size.as_ivec2().as_vec2() * 2.0 - Vec2::ONE;
         Vec2::new(v.x, -v.y)

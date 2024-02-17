@@ -1,10 +1,10 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use glam::UVec2;
 use winit::{event_loop::EventLoop, window::{WindowBuilder, Window}};
 
 pub struct Startup {
-    pub window: Rc<Window>,
+    pub window: Arc<Window>,
     pub event_loop: EventLoop<()>,
     pub is_web: bool,
 }
@@ -25,7 +25,7 @@ impl Startup {
             .with_visible(false)
             .build(&event_loop)
             .expect("Could not create window");
-        let window = Rc::new(window);
+        let window = Arc::new(window);
         log::debug!("Scale factor: {}", window.scale_factor());
 
         #[cfg(target_arch = "wasm32")]
