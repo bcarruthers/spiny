@@ -28,6 +28,31 @@ impl Ray3 {
             }
         }
     }
+
+    // Adapted from:
+    // http://geomalgorithms.com/a07-_distance.html
+    // Copyright 2001 softSurfer, 2012 Dan Sunday
+    // This code may be freely used, distributed and modified for any purpose
+    // providing that this copyright notice is included with it.
+    // SoftSurfer makes no warranty for this code, and cannot be held
+    // liable for any real or imagined damage resulting from its use.
+    // Users of this code must verify correctness for their application.
+    pub fn nearest_points(&self, other: Ray3) -> (f32, f32) {
+        let u = self.dir;
+        let v = other.dir;
+        let w = self.origin - other.origin;
+        let a = u.dot(u);
+        let b = u.dot(v);
+        let c = v.dot(v);
+        let d = u.dot(w);
+        let e = v.dot(w);
+        let dd = a * c - b * b;
+        if dd < 1e-5f32 {
+            (0.0, if b > c { d / b } else { e / c })
+        } else {
+            ((b * e - c * d) / dd, (a * e - b * d) / dd)
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
