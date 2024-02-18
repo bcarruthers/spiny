@@ -41,7 +41,8 @@ impl<'window> GraphicsContext<'window> {
         window: Arc<winit::window::Window>,
         backends: Option<wgpu::Backends>,
     ) -> Result<Self, GraphicsError> {
-        let size = UVec2::new(window.inner_size().width, window.inner_size().height);
+        let size = UVec2::new(window.inner_size().width, window.inner_size().height)
+            .max(UVec2::ONE);
 
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
@@ -124,6 +125,7 @@ impl<'window> GraphicsContext<'window> {
 
     pub fn resize(&mut self, new_size: UVec2) {
         if new_size != self.size() && new_size != UVec2::ZERO {
+            log::debug!("Resizing surface to {:?}", new_size);
             self.config.width = new_size.x;
             self.config.height = new_size.y;
             self.surface.configure(&self.device, &self.config);

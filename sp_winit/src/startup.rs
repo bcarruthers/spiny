@@ -26,7 +26,8 @@ impl Startup {
             .build(&event_loop)
             .expect("Could not create window");
         let window = Arc::new(window);
-        log::debug!("Scale factor: {}", window.scale_factor());
+        log::debug!("Window size: {}x{}, scale factor: {}",
+            window.inner_size().width, window.inner_size().height, window.scale_factor());
 
         #[cfg(target_arch = "wasm32")]
         {
@@ -47,10 +48,10 @@ impl Startup {
                 }
             };
 
-            window.set_inner_size(body_size());
+            window.request_inner_size(body_size());
         
             // On wasm, append the canvas to the document body
-            let canvas = web_sys::Element::from(window.canvas());
+            let canvas = web_sys::Element::from(window.canvas().expect("Could not get canvas"));
             // https://stackoverflow.com/questions/23886278/disable-middle-mouse-click
             canvas.set_attribute("onmousedown", "if (e.which === 2){return false;}")
                 .expect("Could not set attribute");
@@ -64,9 +65,8 @@ impl Startup {
             {
                 let window = window.clone();
                 let closure = wasm_bindgen::closure::Closure::wrap(Box::new(move |e: web_sys::Event| {
-                    log::debug!("Resized window: {:?}", e);
-                    let size = body_size();
-                    window.set_inner_size(size)
+                    log::debug!("Resizing window to body: {:?}", e);
+                    window.request_inner_size(body_size());
                 }) as Box<dyn FnMut(_)>);
                 win
                     .add_event_listener_with_callback("resize", closure.as_ref().unchecked_ref())
