@@ -9,11 +9,13 @@ pub struct Instance {
 }
 
 impl Instance {
+    pub fn transform(&self) -> Mat4 {
+        Mat4::from_scale_rotation_translation(self.scale, self.rotation, self.position)
+    }
+
     pub fn to_raw(&self) -> InstanceRaw {
         InstanceRaw {
-            model: (Mat4::from_rotation_translation(self.rotation, self.position)
-                * Mat4::from_quat(self.rotation))
-            .to_cols_array_2d(),
+            model: self.transform().to_cols_array_2d(),
             scale: Vec4::new(self.scale.x, self.scale.y, self.scale.z, 1.0).to_array(),
             color: self.color.to_array(),
         }

@@ -11,10 +11,6 @@ use sp_math::{
     pcg::PcgRng,
 };
 
-fn rotate_vec2(rot: Vec2, a: Vec2) -> Vec2 {
-    Vec2::new(a.x * rot.x - a.y * rot.y, a.x * rot.y + a.y * rot.x)
-}
-
 pub struct ParticleAnimation {
     pub depth: i32,
     pub random_seed: u64,
@@ -282,7 +278,7 @@ impl ParticleSet {
         let max_tint = self.anim.max_tint;
         for _ in 0..emit_count {
             let dir = self.rand.next_vec2_degrees(self.anim.velocity_angle_range);
-            let dir = rotate_vec2(dir, pe.rotation);
+            let dir = sp_math::vec::rotate_vec2(dir, pe.rotation);
             let end_time = self.time + self.anim.duration as f64;
             self.buf.end_times.push(end_time);
             self.buf
@@ -296,7 +292,7 @@ impl ParticleSet {
             });
             self.buf.sizes.push(size);
             let rot = self.rand.next_vec2_degrees(self.anim.rotation_angle_range);
-            let rot = rotate_vec2(rot, dir);
+            let rot = sp_math::vec::rotate_vec2(rot, dir);
             self.buf.rotations.push(rot.perp());
             self.buf.energies.push(pe.energy);
             self.buf.colors.push({

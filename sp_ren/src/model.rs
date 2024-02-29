@@ -3,15 +3,18 @@ use std::ops::Range;
 use crate::binding::TextureBinding;
 use crate::camera::CameraBinding;
 use crate::instance::{Instance, InstanceRaw};
-use crate::{texture, TextureAtlas, CameraParams};
-use glam::{Mat4, Quat, Vec3};
+use crate::{texture, CameraParams, TextureAtlas};
+use glam::{Quat, Vec3};
 use indexmap::IndexMap;
 use sp_asset::AssetId;
 use wgpu::BindGroupLayout;
 use wgpu::util::DeviceExt;
 
-pub struct Node {
+const MAX_CAMERAS: usize = 16;
 
+pub struct ModelNode {
+    pub mesh: Option<u32>,
+    pub children: Vec<u32>,
 }
 
 pub enum Interpolation {
@@ -84,7 +87,7 @@ pub struct Material {
     pub descriptor: MaterialDescriptor,
 }
 
-pub struct Primitive {
+pub struct RenderPrimitive {
     pub positions: wgpu::Buffer,
     pub normals: wgpu::Buffer,
     pub colors: wgpu::Buffer,
@@ -94,7 +97,7 @@ pub struct Primitive {
     pub material: usize,
 }
 
-impl Primitive {
+impl RenderPrimitive {
     pub fn from_buffers(
         device: &wgpu::Device,
         material: usize,
@@ -142,17 +145,16 @@ impl Primitive {
     }
 }
 
-pub struct Mesh {
-    pub primitives: Vec<Primitive>,
+pub struct RenderMesh {
+    pub primitives: Vec<RenderPrimitive>,
 }
 
-pub struct Model {
-    pub meshes: Vec<Mesh>,
+pub struct RenderModel {
+    pub meshes: Vec<RenderMesh>,
     pub materials: Vec<Material>,
-    pub animations: Vec<AnimationClip>,
 }
 
-impl Model {
+impl RenderModel {
     pub fn from_atlas_quad(device: &wgpu::Device, atlas: &TextureAtlas, asset_id: AssetId) -> Self {
         let tb = atlas.norm_rect(asset_id);
         Self {
@@ -161,8 +163,8 @@ impl Model {
                 binding: TextureBinding::new(device, atlas.texture()),
                 descriptor: MaterialDescriptor::default(),
             }],
-            meshes: vec![Mesh {
-                primitives: vec![Primitive::from_buffers(
+            meshes: vec![RenderMesh {
+                primitives: vec![RenderPrimitive::from_buffers(
                     device,
                     0,
                     &[
@@ -192,19 +194,18 @@ impl Model {
                     &[0, 1, 2, 0, 2, 3, 0, 2, 1, 0, 3, 2],
                 )],
             }],
-            animations: Vec::new(),
         }
     }
 }
 
-pub struct ModelCache {
-    models: IndexMap<AssetId, Model>,
+pub struct RenderModelCache {
+    models: IndexMap<AssetId, RenderModel>,
 }
 
-impl ModelCache {
+impl RenderModelCache {
     pub fn new() -> Self {
-        ModelCache {
-            models: IndexMap::new(),
+        Self {
+            models: Default::default(),
         }
     }
 
@@ -212,21 +213,16 @@ impl ModelCache {
         self.models.clear();
     }
 
-    pub fn add(&mut self, model_id: AssetId, model: Model) {
+    pub fn add(&mut self, model_id: AssetId, model: RenderModel) {
         self.models.insert(model_id, model);
     }
 
-    pub fn iter_primitives(
-        &self,
-        model_id: AssetId,
-    ) -> impl Iterator<Item = (&Primitive, &Material)> {
-        self.models.get(&model_id).into_iter().flat_map(|model| {
-            model
-                .meshes
-                .iter()
-                .flat_map(|mesh| mesh.primitives.iter())
-                .map(|prim| (prim, &model.materials[prim.material]))
-        })
+    // pub fn add_from_gltf(&mut self, id: AssetId, gltf: &Gltf) {
+    //     self.add(id, super::gltf::from_gltf(gltf));
+    // }
+
+    pub fn model(&self, model_id: AssetId) -> Option<&RenderModel> {
+        self.models.get(&model_id)
     }
 }
 
@@ -251,6 +247,7 @@ impl RenderPipelineKey {
 #[derive(Default, Clone)]
 pub struct ModelInstanceRun {
     pub model_id: AssetId,
+    pub mesh_id: u32,
     pub cull_cw: bool,
     pub range: Range<u32>,
 }
@@ -258,7 +255,7 @@ pub struct ModelInstanceRun {
 pub struct ModelRenderer {
     format: wgpu::TextureFormat,
     multisample_count: u32,
-    models: ModelCache,
+    models: RenderModelCache,
     shader: wgpu::ShaderModule,
     //tex_binding: TextureBinding,
     camera_binding: CameraBinding,
@@ -274,10 +271,10 @@ impl ModelRenderer {
         device: &wgpu::Device,
         shader: wgpu::ShaderModule,
         format: wgpu::TextureFormat,
-        models: ModelCache,
+        models: RenderModelCache,
         multisample_count: u32,
     ) -> Self {
-        let camera_binding = CameraBinding::new(device, 1);
+        let camera_binding = CameraBinding::new(device, MAX_CAMERAS);
 
         let instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("model_instance_buffer"),
@@ -295,7 +292,7 @@ impl ModelRenderer {
             instances: Vec::new(),
             instance_buffer,
             camera_binding,
-            render_pipelines: IndexMap::new(),
+            render_pipelines: Default::default(),
         }
     }
 
@@ -368,7 +365,11 @@ impl ModelRenderer {
                 entry_point: "fs_main",
                 targets: &[Some(wgpu::ColorTargetState {
                     format,
-                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                    blend: match key.alpha_mode {
+                        MaterialAlphaMode::Opaque => Some(wgpu::BlendState::REPLACE),
+                        MaterialAlphaMode::Mask => Some(wgpu::BlendState::ALPHA_BLENDING),
+                        MaterialAlphaMode::Blend => Some(wgpu::BlendState::ALPHA_BLENDING),
+                    },
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
             }),
@@ -411,9 +412,10 @@ impl ModelRenderer {
         self.runs.clear();
     }
 
-    pub fn push_model_run(&mut self, model_id: AssetId, cull_cw: bool, range: Range<u32>) {
+    pub fn push_model_run(&mut self, model_id: AssetId, mesh_id: u32, cull_cw: bool, range: Range<u32>) {
         self.runs.push(ModelInstanceRun {
             model_id,
+            mesh_id,
             cull_cw,
             range,
         });
@@ -427,7 +429,7 @@ impl ModelRenderer {
         self.models.clear();
     }
 
-    pub fn add_model(&mut self, model_id: AssetId, model: Model) {
+    pub fn add_model(&mut self, model_id: AssetId, model: RenderModel) {
         self.models.add(model_id, model);
     }
 
@@ -435,15 +437,13 @@ impl ModelRenderer {
     //     self.instances.extend_from_slice(instances);
     // }
 
-    pub fn update(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, view: Mat4, proj: Mat4, light_dir: Vec3) {
-        self.camera_binding.update(queue, &[
-            CameraParams {
-                view,
-                proj,
-                light_dir,
-                ..Default::default()
-            }
-        ]);
+    pub fn update(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue, 
+        cameras: &[CameraParams],
+    ) {
+        self.camera_binding.update(queue, cameras);
         queue.write_buffer(
             &self.instance_buffer,
             0,
@@ -451,38 +451,47 @@ impl ModelRenderer {
         );
         // Create material pipelines
         for run in self.runs.iter() {
-            for (_primitive, material) in self.models.iter_primitives(run.model_id) {
-                let key = RenderPipelineKey::from_material(material);
-                self.render_pipelines.entry(key).or_insert_with(|| {
-                    Self::create_pipeline(
-                        device,
-                        &self.shader,
-                        self.format,
-                        self.multisample_count,
-                        self.camera_binding.layout(),
-                        key,
-                    )
-                });
+            if let Some(model) = self.models.model(run.model_id) {
+                for mesh in model.meshes.iter() {
+                    for primitive in mesh.primitives.iter() {
+                        let material = &model.materials[primitive.material];
+                        let key = RenderPipelineKey::from_material(material);
+                        self.render_pipelines.entry(key).or_insert_with(|| {
+                            Self::create_pipeline(
+                                device,
+                                &self.shader,
+                                self.format,
+                                self.multisample_count,
+                                self.camera_binding.layout(),
+                                key,
+                            )
+                        });
+                    }
+                }
             }
         }
     }
 
-    pub fn draw<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
-        render_pass.set_bind_group(1, &self.camera_binding.bind_group(0), &[]);
+    pub fn draw<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, camera_index: usize) {
+        render_pass.set_bind_group(1, &self.camera_binding.bind_group(camera_index), &[]);
         render_pass.set_vertex_buffer(4, self.instance_buffer.slice(..));
         for run in self.runs.iter() {
-            for (primitive, material) in self.models.iter_primitives(run.model_id) {
-                let key = RenderPipelineKey::from_material(material);
-                if let Some(render_pipeline) = self.render_pipelines.get(&key) {
-                    render_pass.set_pipeline(render_pipeline);
-                    render_pass.set_bind_group(0, &material.binding.group, &[]);
-                    render_pass.set_vertex_buffer(0, primitive.positions.slice(..));
-                    render_pass.set_vertex_buffer(1, primitive.normals.slice(..));
-                    render_pass.set_vertex_buffer(2, primitive.colors.slice(..));
-                    render_pass.set_vertex_buffer(3, primitive.tex_coords.slice(..));
-                    render_pass
-                        .set_index_buffer(primitive.indices.slice(..), wgpu::IndexFormat::Uint32);
-                    render_pass.draw_indexed(0..primitive.index_count, 0, run.range.clone());
+            if let Some(model) = self.models.model(run.model_id) {
+                let mesh = &model.meshes[run.mesh_id as usize];                 
+                for primitive in mesh.primitives.iter() {
+                    let material = &model.materials[primitive.material];
+                    let key = RenderPipelineKey::from_material(material);
+                    if let Some(render_pipeline) = self.render_pipelines.get(&key) {
+                        render_pass.set_pipeline(render_pipeline);
+                        render_pass.set_bind_group(0, &material.binding.group, &[]);
+                        render_pass.set_vertex_buffer(0, primitive.positions.slice(..));
+                        render_pass.set_vertex_buffer(1, primitive.normals.slice(..));
+                        render_pass.set_vertex_buffer(2, primitive.colors.slice(..));
+                        render_pass.set_vertex_buffer(3, primitive.tex_coords.slice(..));
+                        render_pass
+                            .set_index_buffer(primitive.indices.slice(..), wgpu::IndexFormat::Uint32);
+                        render_pass.draw_indexed(0..primitive.index_count, 0, run.range.clone());
+                    }
                 }
             }
         }

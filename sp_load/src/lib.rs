@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 pub mod pack;
 
 use sp_asset::archive::*;

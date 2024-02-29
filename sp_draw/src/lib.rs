@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 mod sprite;
 mod particle;
 mod atlas;
