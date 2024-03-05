@@ -79,23 +79,24 @@ impl CameraBinding {
     pub fn new(device: &wgpu::Device, max_cameras: usize) -> Self {
         let mut buffers = Vec::new();
         for _ in 0..max_cameras {
-            buffers.push(PodBuffer::new(device, 0,
-                wgpu::ShaderStages::VERTEX_FRAGMENT, Default::default()));
+            buffers.push(PodBuffer::new(
+                device,
+                0,
+                wgpu::ShaderStages::VERTEX_FRAGMENT,
+                Some("camera_buffer"),
+                Default::default(),
+            ));
         }
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[
-                buffers[0].layout_entry,
-            ],
-            label: Some("block_transform_bind_group_layout"),
+            entries: &[buffers[0].layout_entry],
+            label: Some("camera_bind_group_layout"),
         });
         let mut bind_groups = Vec::new();
         for i in 0..max_cameras {
             let bindings = device.create_bind_group(&wgpu::BindGroupDescriptor {
                 layout: &layout,
-                entries: &[
-                    buffers[i].as_bind_group_entry(),
-                ],
-                label: Some("block_transform_bind_group"),
+                entries: &[buffers[i].as_bind_group_entry()],
+                label: Some("camera_bind_group"),
             });
             bind_groups.push(bindings);
         }
@@ -114,15 +115,10 @@ impl CameraBinding {
         &self.bind_groups[index]
     }
 
-    pub fn update(
-        &mut self,
-        queue: &wgpu::Queue,
-        cameras: &[CameraParams],
-    ) {
+    pub fn update(&mut self, queue: &wgpu::Queue, cameras: &[CameraParams]) {
         for i in 0..cameras.len() {
             let camera = &cameras[i];
             self.buffers[i].write(queue, GpuCameraParams::from_params(camera));
         }
     }
-
 }

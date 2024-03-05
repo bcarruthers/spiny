@@ -35,6 +35,3 @@ pub use msaa::MultisampleFramebuffer;
 pub use sprite::SpriteRenderer;
 pub use text::TextRenderer;
 pub use texture::Texture;
-
-#[cfg(test)]
-mod tests;

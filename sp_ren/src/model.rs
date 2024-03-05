@@ -7,8 +7,8 @@ use crate::{texture, CameraParams, TextureAtlas};
 use glam::{Quat, Vec3};
 use indexmap::IndexMap;
 use sp_asset::AssetId;
-use wgpu::BindGroupLayout;
 use wgpu::util::DeviceExt;
+use wgpu::BindGroupLayout;
 
 const MAX_CAMERAS: usize = 16;
 
@@ -92,7 +92,10 @@ pub struct RenderPrimitive {
     pub normals: wgpu::Buffer,
     pub colors: wgpu::Buffer,
     pub tex_coords: wgpu::Buffer,
+    pub joint_indices: wgpu::Buffer,
+    pub joint_weights: wgpu::Buffer,
     pub indices: wgpu::Buffer,
+    pub vertex_count: u32,
     pub index_count: u32,
     pub material: usize,
 }
@@ -105,8 +108,11 @@ impl RenderPrimitive {
         normals: &[[f32; 3]],
         colors: &[[f32; 4]],
         tex_coords: &[[f32; 2]],
+        joint_indices: &[[u32; 4]],
+        joint_weights: &[[f32; 4]],
         indices: &[u32],
     ) -> Self {
+        let vertex_count = positions.len() as u32;
         let index_count = indices.len() as u32;
         let positions = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None, //Some(&format!("{:?} Vertex Buffer", path.as_ref())),
@@ -128,6 +134,16 @@ impl RenderPrimitive {
             contents: bytemuck::cast_slice(tex_coords),
             usage: wgpu::BufferUsages::VERTEX,
         });
+        let joint_indices = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None, //Some(&format!("{:?} Index Buffer", path.as_ref())),
+            contents: bytemuck::cast_slice(joint_indices),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+        let joint_weights = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None, //Some(&format!("{:?} Index Buffer", path.as_ref())),
+            contents: bytemuck::cast_slice(joint_weights),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
         let indices = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None, //Some(&format!("{:?} Index Buffer", path.as_ref())),
             contents: bytemuck::cast_slice(indices),
@@ -139,6 +155,9 @@ impl RenderPrimitive {
             normals,
             colors,
             tex_coords,
+            vertex_count,
+            joint_indices,
+            joint_weights,
             indices,
             index_count,
         }
@@ -191,6 +210,8 @@ impl RenderModel {
                         tb.x1y1().to_array(),
                         tb.x0y1().to_array(),
                     ],
+                    &[],
+                    &[],
                     &[0, 1, 2, 0, 2, 3, 0, 2, 1, 0, 3, 2],
                 )],
             }],
@@ -238,7 +259,10 @@ impl RenderPipelineKey {
         Self {
             alpha_mode: material.descriptor.alpha_mode,
             // Quantize cutoff
-            alpha_cutoff: material.descriptor.alpha_cutoff.map(|x| (x * 65535.0) as u32),
+            alpha_cutoff: material
+                .descriptor
+                .alpha_cutoff
+                .map(|x| (x * 65535.0) as u32),
             double_sided: material.descriptor.double_sided,
         }
     }
@@ -257,11 +281,11 @@ pub struct ModelRenderer {
     multisample_count: u32,
     models: RenderModelCache,
     shader: wgpu::ShaderModule,
-    //tex_binding: TextureBinding,
     camera_binding: CameraBinding,
     render_pipelines: IndexMap<RenderPipelineKey, wgpu::RenderPipeline>,
     runs: Vec<ModelInstanceRun>,
     instances: Vec<InstanceRaw>,
+    max_instances: u32,
     #[allow(dead_code)]
     instance_buffer: wgpu::Buffer,
 }
@@ -273,19 +297,21 @@ impl ModelRenderer {
         format: wgpu::TextureFormat,
         models: RenderModelCache,
         multisample_count: u32,
+        max_instances: u32,
     ) -> Self {
         let camera_binding = CameraBinding::new(device, MAX_CAMERAS);
 
         let instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("model_instance_buffer"),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-            size: 1024 as u64 * std::mem::size_of::<Instance>() as u64,
+            size: max_instances as u64 * std::mem::size_of::<Instance>() as u64,
             mapped_at_creation: false,
         });
 
         Self {
             format,
             multisample_count,
+            max_instances,
             models,
             shader,
             runs: Vec::new(),
@@ -377,7 +403,11 @@ impl ModelRenderer {
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
-                cull_mode: if key.double_sided { None } else { Some(wgpu::Face::Back) },
+                cull_mode: if key.double_sided {
+                    None
+                } else {
+                    Some(wgpu::Face::Back)
+                },
                 // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
                 polygon_mode: wgpu::PolygonMode::Fill,
                 // Requires Features::DEPTH_CLIP_CONTROL
@@ -412,7 +442,13 @@ impl ModelRenderer {
         self.runs.clear();
     }
 
-    pub fn push_model_run(&mut self, model_id: AssetId, mesh_id: u32, cull_cw: bool, range: Range<u32>) {
+    pub fn push_model_run(
+        &mut self,
+        model_id: AssetId,
+        mesh_id: u32,
+        cull_cw: bool,
+        range: Range<u32>,
+    ) {
         self.runs.push(ModelInstanceRun {
             model_id,
             mesh_id,
@@ -422,7 +458,9 @@ impl ModelRenderer {
     }
 
     pub fn push_instance(&mut self, instance: InstanceRaw) {
-        self.instances.push(instance);
+        if self.instances.len() < self.max_instances as usize {
+            self.instances.push(instance);
+        }
     }
 
     pub fn clear_models(&mut self) {
@@ -433,16 +471,7 @@ impl ModelRenderer {
         self.models.add(model_id, model);
     }
 
-    // pub fn extend_instances_from_slice(&mut self, instances: &[InstanceRaw]) {
-    //     self.instances.extend_from_slice(instances);
-    // }
-
-    pub fn update(
-        &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue, 
-        cameras: &[CameraParams],
-    ) {
+    pub fn update(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, cameras: &[CameraParams]) {
         self.camera_binding.update(queue, cameras);
         queue.write_buffer(
             &self.instance_buffer,
@@ -477,7 +506,7 @@ impl ModelRenderer {
         render_pass.set_vertex_buffer(4, self.instance_buffer.slice(..));
         for run in self.runs.iter() {
             if let Some(model) = self.models.model(run.model_id) {
-                let mesh = &model.meshes[run.mesh_id as usize];                 
+                let mesh = &model.meshes[run.mesh_id as usize];
                 for primitive in mesh.primitives.iter() {
                     let material = &model.materials[primitive.material];
                     let key = RenderPipelineKey::from_material(material);
@@ -488,8 +517,10 @@ impl ModelRenderer {
                         render_pass.set_vertex_buffer(1, primitive.normals.slice(..));
                         render_pass.set_vertex_buffer(2, primitive.colors.slice(..));
                         render_pass.set_vertex_buffer(3, primitive.tex_coords.slice(..));
-                        render_pass
-                            .set_index_buffer(primitive.indices.slice(..), wgpu::IndexFormat::Uint32);
+                        render_pass.set_index_buffer(
+                            primitive.indices.slice(..),
+                            wgpu::IndexFormat::Uint32,
+                        );
                         render_pass.draw_indexed(0..primitive.index_count, 0, run.range.clone());
                     }
                 }

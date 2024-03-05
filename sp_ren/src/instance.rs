@@ -32,6 +32,8 @@ pub struct InstanceRaw {
 }
 
 impl InstanceRaw {
+    const LOCATION: u32 = 6;
+
     pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         use std::mem;
         wgpu::VertexBufferLayout {
@@ -43,32 +45,32 @@ impl InstanceRaw {
             attributes: &[
                 wgpu::VertexAttribute {
                     offset: mem::size_of::<[f32; 0]>() as wgpu::BufferAddress,
-                    shader_location: 5,
+                    shader_location: Self::LOCATION,
                     format: wgpu::VertexFormat::Float32x4,
                 },
                 wgpu::VertexAttribute {
                     offset: mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
-                    shader_location: 6,
+                    shader_location: Self::LOCATION + 1,
                     format: wgpu::VertexFormat::Float32x4,
                 },
                 wgpu::VertexAttribute {
                     offset: mem::size_of::<[f32; 8]>() as wgpu::BufferAddress,
-                    shader_location: 7,
+                    shader_location: Self::LOCATION + 2,
                     format: wgpu::VertexFormat::Float32x4,
                 },
                 wgpu::VertexAttribute {
                     offset: mem::size_of::<[f32; 12]>() as wgpu::BufferAddress,
-                    shader_location: 8,
+                    shader_location: Self::LOCATION + 3,
                     format: wgpu::VertexFormat::Float32x4,
                 },
                 wgpu::VertexAttribute {
                     offset: mem::size_of::<[f32; 16]>() as wgpu::BufferAddress,
-                    shader_location: 9,
+                    shader_location: Self::LOCATION + 4,
                     format: wgpu::VertexFormat::Float32x4,
                 },
                 wgpu::VertexAttribute {
                     offset: mem::size_of::<[f32; 20]>() as wgpu::BufferAddress,
-                    shader_location: 10,
+                    shader_location: Self::LOCATION + 5,
                     format: wgpu::VertexFormat::Float32x4,
                 },
             ],

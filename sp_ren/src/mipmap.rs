@@ -16,7 +16,7 @@ impl MipmapGenerator {
         });
 
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("blit"),
+            label: Some("mipmap_blit"),
             layout: None,
             vertex: wgpu::VertexState {
                 module: &shader,
@@ -49,7 +49,7 @@ impl MipmapGenerator {
         let bind_group_layout = self.pipeline.get_bind_group_layout(0);
 
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            label: Some("mip"),
+            label: Some("mipmap_sampler"),
             address_mode_u: wgpu::AddressMode::ClampToEdge,
             address_mode_v: wgpu::AddressMode::ClampToEdge,
             address_mode_w: wgpu::AddressMode::ClampToEdge,
@@ -62,7 +62,7 @@ impl MipmapGenerator {
         let views = (0..mip_count)
             .map(|mip| {
                 texture.create_view(&wgpu::TextureViewDescriptor {
-                    label: Some("mip"),
+                    label: Some("mipmap_texture_view"),
                     format: None,
                     dimension: None,
                     aspect: wgpu::TextureAspect::All,

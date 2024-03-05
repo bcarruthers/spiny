@@ -1,7 +1,7 @@
 use super::texture::*;
 use glam::*;
-use wgpu::util::DeviceExt;
 use std::marker::PhantomData;
+use wgpu::util::DeviceExt;
 
 pub struct PodBuffer<U> {
     pub uniform: PhantomData<U>,
@@ -14,10 +14,11 @@ impl<U: bytemuck::Pod> PodBuffer<U> {
         device: &wgpu::Device,
         binding: u32,
         visibility: wgpu::ShaderStages,
-        uniform: U
+        label: Option<&str>,
+        uniform: U,
     ) -> Self {
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("block_transform_buffer"),
+            label,
             contents: bytemuck::cast_slice(&[uniform]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
@@ -43,7 +44,7 @@ impl<U: bytemuck::Pod> PodBuffer<U> {
     pub fn as_bind_group_entry(&self) -> wgpu::BindGroupEntry {
         wgpu::BindGroupEntry {
             binding: self.layout_entry.binding,
-            resource: self.buffer.as_entire_binding()
+            resource: self.buffer.as_entire_binding(),
         }
     }
 
@@ -51,6 +52,7 @@ impl<U: bytemuck::Pod> PodBuffer<U> {
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[uniform]));
     }
 }
+
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct Mat4Uniform {
@@ -87,7 +89,7 @@ impl TransformBinding {
                 },
                 count: None,
             }],
-            label: Some("camera_bind_group_layout"),
+            label: Some("transform_bind_group_layout"),
         });
 
         let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -96,7 +98,7 @@ impl TransformBinding {
                 binding: 0,
                 resource: buffer.as_entire_binding(),
             }],
-            label: Some("camera_bind_group"),
+            label: Some("transform_bind_group"),
         });
 
         Self {
@@ -156,7 +158,8 @@ impl TextureBinding {
     }
 
     pub fn new_multisampled(device: &wgpu::Device, texture: &Texture, multisampled: bool) -> Self {
-        let layout = Self::create_layout_multisampled(device, wgpu::TextureViewDimension::D2, multisampled);
+        let layout =
+            Self::create_layout_multisampled(device, wgpu::TextureViewDimension::D2, multisampled);
         let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &layout,
             entries: &[

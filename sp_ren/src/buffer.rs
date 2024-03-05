@@ -202,7 +202,7 @@ fn create_quad_indices(quad_count: usize) -> Vec<u32> {
 fn create_index_buffer(device: &wgpu::Device, quad_count: usize) -> wgpu::Buffer {
     let indices = create_quad_indices(quad_count);
     device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("sprite_index_buffer"),
+        label: Some("quad_index_buffer"),
         contents: bytemuck::cast_slice(&indices),
         usage: wgpu::BufferUsages::INDEX,
     })
