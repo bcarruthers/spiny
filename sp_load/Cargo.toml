@@ -6,7 +6,7 @@ edition = "2021"
 build = "src/build.rs"
 
 [dependencies]
-glam = { version = "0.20.2" }
+glam = { version = "0.26.0" }
 log = "0.4.14"
 zip = { version = "0.5.13", default-features = false, features = [] }
 walkdir = "2"

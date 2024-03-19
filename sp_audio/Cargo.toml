@@ -4,7 +4,7 @@ version = "0.0.0"
 edition = "2021"
 
 [dependencies]
-glam = { version = "0.20.2" }
+glam = { version = "0.26.0" }
 indexmap = { version = "1.9.1" }
 log = "0.4.14"
 fyrox-sound = "0.28.0"

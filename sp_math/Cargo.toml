@@ -4,4 +4,4 @@ version = "0.0.0"
 edition = "2021"
 
 [dependencies]
-glam = { version = "0.20.2" }
+glam = { version = "0.26.0" }
