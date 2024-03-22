@@ -238,10 +238,6 @@ impl RenderModelCache {
         self.models.insert(model_id, model);
     }
 
-    // pub fn add_from_gltf(&mut self, id: AssetId, gltf: &Gltf) {
-    //     self.add(id, super::gltf::from_gltf(gltf));
-    // }
-
     pub fn model(&self, model_id: AssetId) -> Option<&RenderModel> {
         self.models.get(&model_id)
     }
@@ -276,13 +272,7 @@ pub struct ModelInstanceRun {
     pub range: Range<u32>,
 }
 
-pub struct ModelRenderer {
-    format: wgpu::TextureFormat,
-    multisample_count: u32,
-    models: RenderModelCache,
-    shader: wgpu::ShaderModule,
-    camera_binding: CameraBinding,
-    render_pipelines: IndexMap<RenderPipelineKey, wgpu::RenderPipeline>,
+pub struct ModelInstanceBuffer {
     runs: Vec<ModelInstanceRun>,
     instances: Vec<InstanceRaw>,
     max_instances: u32,
@@ -290,33 +280,96 @@ pub struct ModelRenderer {
     instance_buffer: wgpu::Buffer,
 }
 
-impl ModelRenderer {
+impl ModelInstanceBuffer {
     pub fn new(
         device: &wgpu::Device,
-        shader: wgpu::ShaderModule,
-        format: wgpu::TextureFormat,
-        models: RenderModelCache,
-        multisample_count: u32,
         max_instances: u32,
     ) -> Self {
-        let camera_binding = CameraBinding::new(device, MAX_CAMERAS);
-
         let instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("model_instance_buffer"),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             size: max_instances as u64 * std::mem::size_of::<Instance>() as u64,
             mapped_at_creation: false,
         });
-
         Self {
-            format,
-            multisample_count,
-            max_instances,
-            models,
-            shader,
             runs: Vec::new(),
             instances: Vec::new(),
             instance_buffer,
+            max_instances,
+        }
+    }
+
+    pub fn count(&self) -> usize {
+        self.instances.len()
+    }
+
+    pub fn runs(&self) -> &[ModelInstanceRun] {
+        &self.runs
+    }
+
+    pub fn device_buffer(&self) -> &wgpu::Buffer {
+        &self.instance_buffer
+    }
+
+    pub fn clear(&mut self) {
+        self.instances.clear();
+        self.runs.clear();
+    }
+
+    pub fn push_model_run(
+        &mut self,
+        model_id: AssetId,
+        mesh_id: u32,
+        cull_cw: bool,
+        range: Range<u32>,
+    ) {
+        self.runs.push(ModelInstanceRun {
+            model_id,
+            mesh_id,
+            cull_cw,
+            range,
+        });
+    }
+
+    pub fn push_instance(&mut self, instance: InstanceRaw) {
+        if self.instances.len() < self.max_instances as usize {
+            self.instances.push(instance);
+        }
+    }
+
+    pub fn update(&mut self, queue: &wgpu::Queue) {
+        queue.write_buffer(
+            &self.instance_buffer,
+            0,
+            bytemuck::cast_slice(&self.instances),
+        );
+    }
+}
+
+pub struct ModelRenderer {
+    format: wgpu::TextureFormat,
+    multisample_count: u32,
+    shader: wgpu::ShaderModule,
+    camera_binding: CameraBinding,
+    render_pipelines: IndexMap<RenderPipelineKey, wgpu::RenderPipeline>,
+    instances: ModelInstanceBuffer,
+}
+
+impl ModelRenderer {
+    pub fn new(
+        device: &wgpu::Device,
+        shader: wgpu::ShaderModule,
+        format: wgpu::TextureFormat,
+        multisample_count: u32,
+        max_instances: u32,
+    ) -> Self {
+        let camera_binding = CameraBinding::new(device, MAX_CAMERAS);
+        let instances = ModelInstanceBuffer::new(device, max_instances);
+        Self {
+            format,
+            multisample_count,
+            instances,
+            shader,
             camera_binding,
             render_pipelines: Default::default(),
         }
@@ -433,54 +486,20 @@ impl ModelRenderer {
         })
     }
 
-    pub fn count(&self) -> usize {
-        self.instances.len()
+    pub fn instances(&self) -> &ModelInstanceBuffer {
+        &self.instances
     }
 
-    pub fn clear(&mut self) {
-        self.instances.clear();
-        self.runs.clear();
+    pub fn instances_mut(&mut self) -> &mut ModelInstanceBuffer {
+        &mut self.instances
     }
 
-    pub fn push_model_run(
-        &mut self,
-        model_id: AssetId,
-        mesh_id: u32,
-        cull_cw: bool,
-        range: Range<u32>,
-    ) {
-        self.runs.push(ModelInstanceRun {
-            model_id,
-            mesh_id,
-            cull_cw,
-            range,
-        });
-    }
-
-    pub fn push_instance(&mut self, instance: InstanceRaw) {
-        if self.instances.len() < self.max_instances as usize {
-            self.instances.push(instance);
-        }
-    }
-
-    pub fn clear_models(&mut self) {
-        self.models.clear();
-    }
-
-    pub fn add_model(&mut self, model_id: AssetId, model: RenderModel) {
-        self.models.add(model_id, model);
-    }
-
-    pub fn update(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, cameras: &[CameraParams]) {
+    pub fn update(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, cameras: &[CameraParams], models: &RenderModelCache) {
         self.camera_binding.update(queue, cameras);
-        queue.write_buffer(
-            &self.instance_buffer,
-            0,
-            bytemuck::cast_slice(&self.instances),
-        );
+        self.instances.update(queue);
         // Create material pipelines
-        for run in self.runs.iter() {
-            if let Some(model) = self.models.model(run.model_id) {
+        for run in self.instances.runs().iter() {
+            if let Some(model) = models.model(run.model_id) {
                 for mesh in model.meshes.iter() {
                     for primitive in mesh.primitives.iter() {
                         let material = &model.materials[primitive.material];
@@ -501,11 +520,11 @@ impl ModelRenderer {
         }
     }
 
-    pub fn draw<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, camera_index: usize) {
+    pub fn draw<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, camera_index: usize, models: &'a RenderModelCache) {
         render_pass.set_bind_group(1, &self.camera_binding.bind_group(camera_index), &[]);
-        render_pass.set_vertex_buffer(4, self.instance_buffer.slice(..));
-        for run in self.runs.iter() {
-            if let Some(model) = self.models.model(run.model_id) {
+        render_pass.set_vertex_buffer(4, self.instances.device_buffer().slice(..));
+        for run in self.instances.runs().iter() {
+            if let Some(model) = models.model(run.model_id) {
                 let mesh = &model.meshes[run.mesh_id as usize];
                 for primitive in mesh.primitives.iter() {
                     let material = &model.materials[primitive.material];

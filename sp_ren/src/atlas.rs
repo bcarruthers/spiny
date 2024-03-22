@@ -7,7 +7,8 @@ use sp_asset::{archive::FileArchive, AssetRef, AssetId};
 use sp_draw::{AtlasDef, AtlasEntry, AtlasEntryBounds};
 use sp_math::range::{IRange2, Range2};
 
-use crate::{pack::*, Texture};
+use crunch::*;
+use crate::Texture;
 
 pub fn read_image<R: Read>(reader: &mut R) -> image::ImageResult<DynamicImage> {
     let mut buf = Vec::new();
@@ -112,12 +113,13 @@ pub fn load_texture_atlas_images(
         Ok(all_packed) => {
             // Write resulting rects to original indices
             let rects = all_packed.into_iter()
-                .map(|(r, (i, j))| {
+                .map(|item| {
+                    let r = item.rect;
                     let rect = IRange2::sized(
                         IVec2::new(r.x as i32, r.y as i32),
                         IVec2::new(r.w as i32, r.h as i32),
                     );
-                    ((i, j), rect)
+                    (item.data, rect)
                 }).collect::<IndexMap<_,_>>();
             // Create key->rect lookup
             let scale = Vec2::ONE / atlas_size as f32;
@@ -164,7 +166,7 @@ pub fn load_texture_atlas_images(
         Err(some_packed) => {
             log::warn!(
                 "Could only pack {}/{} textures in atlas",
-                some_packed.0.len(),
+                some_packed.len(),
                 images.len()
             );
             None
