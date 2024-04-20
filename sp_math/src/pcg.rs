@@ -1,6 +1,82 @@
 use std::ops::Range;
 
-use glam::{Quat, Vec2, Vec3};
+use glam::{IVec2, Quat, UVec2, UVec3, UVec4, Vec2, Vec3};
+
+// ND variants below are hashes that skip some steps of the original PCG.
+// Sources:
+// https://www.pcg-random.org/
+// http://www.jcgt.org/published/0009/03/02/
+// https://www.shadertoy.com/view/XlGcRh
+
+pub fn pcg(v: u32) -> u32 {
+    let state = v.wrapping_mul(747796405u32).wrapping_add(2891336453u32);
+    let word = ((state >> ((state >> 28).wrapping_add(4))) ^ state).wrapping_mul(277803737u32);
+    (word >> 22) ^ word
+}
+
+pub fn pcg2d(mut v: UVec2) -> UVec2 {
+    v = UVec2::new(
+        v.x.wrapping_mul(1664525u32).wrapping_add(1013904223u32),
+        v.y.wrapping_mul(1664525u32).wrapping_add(1013904223u32),
+    );
+    v.x = v.x.wrapping_add(v.y.wrapping_mul(1664525u32));
+    v.y = v.y.wrapping_add(v.x.wrapping_mul(1664525u32));
+    v = v ^ (v >> 16);
+    v.x = v.x.wrapping_add(v.y.wrapping_mul(1664525u32));
+    v.y = v.y.wrapping_add(v.x.wrapping_mul(1664525u32));
+    v = v ^ (v >> 16);
+    v
+}
+
+pub fn pcg3d(mut v: UVec3) -> UVec3 {
+    v = UVec3::new(
+        v.x.wrapping_mul(1664525u32).wrapping_add(1013904223u32),
+        v.y.wrapping_mul(1664525u32).wrapping_add(1013904223u32),
+        v.z.wrapping_mul(1664525u32).wrapping_add(1013904223u32),
+    );
+    v.x = v.x.wrapping_add(v.y.wrapping_mul(v.z));
+    v.y = v.y.wrapping_add(v.z.wrapping_mul(v.x));
+    v.z = v.z.wrapping_add(v.x.wrapping_mul(v.y));
+    v = v ^ (v >> 16);
+    v.x = v.x.wrapping_add(v.y.wrapping_mul(v.z));
+    v.y = v.y.wrapping_add(v.z.wrapping_mul(v.x));
+    v.z = v.z.wrapping_add(v.x.wrapping_mul(v.y));
+    v
+}
+
+pub fn pcg3d16(mut v: UVec3) -> UVec3 {
+    v = UVec3::new(
+        v.x.wrapping_mul(12829u32).wrapping_add(47989u32),
+        v.y.wrapping_mul(12829u32).wrapping_add(47989u32),
+        v.z.wrapping_mul(12829u32).wrapping_add(47989u32),
+    );
+    v.x = v.x.wrapping_add(v.y.wrapping_mul(v.z));
+    v.y = v.y.wrapping_add(v.z.wrapping_mul(v.x));
+    v.z = v.z.wrapping_add(v.x.wrapping_mul(v.y));
+    v.x = v.x.wrapping_add(v.y.wrapping_mul(v.z));
+    v.y = v.y.wrapping_add(v.z.wrapping_mul(v.x));
+    v.z = v.z.wrapping_add(v.x.wrapping_mul(v.y));
+    v >> 16
+}
+
+pub fn pcg4d(mut v: UVec4) -> UVec4 {
+    v = UVec4::new(
+        v.x.wrapping_mul(1664525u32).wrapping_add(1013904223u32),
+        v.y.wrapping_mul(1664525u32).wrapping_add(1013904223u32),
+        v.z.wrapping_mul(1664525u32).wrapping_add(1013904223u32),
+        v.w.wrapping_mul(1664525u32).wrapping_add(1013904223u32),
+    );
+    v.x = v.x.wrapping_add(v.y.wrapping_mul(v.w));
+    v.y = v.y.wrapping_add(v.z.wrapping_mul(v.x));
+    v.z = v.z.wrapping_add(v.x.wrapping_mul(v.y));
+    v.w = v.w.wrapping_add(v.y.wrapping_mul(v.z));
+    v = v ^ (v >> 16);
+    v.x = v.x.wrapping_add(v.y.wrapping_mul(v.w));
+    v.y = v.y.wrapping_add(v.z.wrapping_mul(v.x));
+    v.z = v.z.wrapping_add(v.x.wrapping_mul(v.y));
+    v.w = v.w.wrapping_add(v.y.wrapping_mul(v.z));
+    v
+}
 
 pub struct PcgRng {
     inc: u64,
@@ -114,6 +190,22 @@ impl PcgRng {
         Vec3::new(self.next_f32(), self.next_f32(), self.next_f32())
     }
 
+    pub fn next_ivec2_in_sphere_pow2(&mut self, radius_pow2: u32) -> IVec2 {
+        let radius = 1 << radius_pow2;
+        let radius_sqr = 1 << (radius_pow2 * 2);
+        let mask = (1 << (radius_pow2 + 1)) - 1;
+        for _ in 0..10 {
+            let p = IVec2::new(
+                (self.next_u32() & mask) as i32 - radius,
+                (self.next_u32() & mask) as i32 - radius);
+            let dist_sqr = p.dot(p);
+            if dist_sqr <= radius_sqr {
+                return p;
+            }
+        }
+        IVec2::ZERO
+    }
+
     pub fn next_vec2_in_unit_sphere(&mut self) -> Vec2 {
         for _ in 0..10 {
             let p = self.next_vec2() * 2.0 - Vec2::ONE;
@@ -182,5 +274,23 @@ impl PcgRng {
 impl Default for PcgRng {
     fn default() -> Self {
         Self::new(0x853c49e6748fea9bu64, 0xda3e39cb94b95bdbu64)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_ivec2_in_sphere() {
+        let mut rng = PcgRng::default();
+        for r in 0..3 {
+            for _ in 0..100 {
+                let p = rng.next_ivec2_in_sphere_pow2(r);
+                let dist_sqr = p.dot(p);
+                let radius_sqr = 1 << (r * 2);
+                assert!(dist_sqr <= radius_sqr);
+            }
+        }
     }
 }

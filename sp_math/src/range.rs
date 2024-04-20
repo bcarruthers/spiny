@@ -50,6 +50,10 @@ impl IRange1 {
         p >= self.min && p < self.max
     }
 
+    pub fn clamp(&self, p: i32) -> i32 {
+        p.clamp(self.min, self.max)
+    }
+
     pub fn is_empty(&self) -> bool {
         self.min >= self.max
     }
@@ -77,6 +81,26 @@ impl IRange1 {
         Self {
             min: self.min - margin,
             max: self.max + margin,
+        }
+    }
+}
+
+impl ops::Shl<u32> for IRange1 {
+    type Output = Self;
+    fn shl(self, rhs: u32) -> Self {
+        Self {
+            min: self.min << rhs,
+            max: self.max << rhs,
+        }
+    }
+}
+
+impl ops::Shr<u32> for IRange1 {
+    type Output = Self;
+    fn shr(self, rhs: u32) -> Self {
+        Self {
+            min: self.min >> rhs,
+            max: self.max >> rhs,
         }
     }
 }
@@ -426,6 +450,10 @@ impl IRange2 {
         p.x >= self.min.x && p.x < self.max.x && p.y >= self.min.y && p.y < self.max.y
     }
 
+    pub fn clamp(&self, p: IVec2) -> IVec2 {
+        p.clamp(self.min, self.max)
+    }
+
     pub fn size(&self) -> IVec2 {
         self.max - self.min
     }
@@ -452,6 +480,26 @@ impl IRange2 {
         Self {
             min: self.min - margin,
             max: self.max + margin,
+        }
+    }
+}
+
+impl ops::Shl<u32> for IRange2 {
+    type Output = Self;
+    fn shl(self, rhs: u32) -> Self {
+        Self {
+            min: self.min << rhs,
+            max: self.max << rhs,
+        }
+    }
+}
+
+impl ops::Shr<u32> for IRange2 {
+    type Output = Self;
+    fn shr(self, rhs: u32) -> Self {
+        Self {
+            min: self.min >> rhs,
+            max: self.max >> rhs,
         }
     }
 }
@@ -922,6 +970,10 @@ impl IRange3 {
             && p.z < self.max.z
     }
 
+    pub fn clamp(&self, p: IVec3) -> IVec3 {
+        p.clamp(self.min, self.max)
+    }
+
     pub fn size(&self) -> IVec3 {
         self.max - self.min
     }
@@ -949,6 +1001,26 @@ impl IRange3 {
         IRangeIter3 {
             range: Self::new(r.min, r.max - IVec3::ONE),
             pos: IVec3::new(r.min.x - 1, r.min.y, r.min.z),
+        }
+    }
+}
+
+impl ops::Shl<u32> for IRange3 {
+    type Output = Self;
+    fn shl(self, rhs: u32) -> Self {
+        Self {
+            min: self.min << rhs,
+            max: self.max << rhs,
+        }
+    }
+}
+
+impl ops::Shr<u32> for IRange3 {
+    type Output = Self;
+    fn shr(self, rhs: u32) -> Self {
+        Self {
+            min: self.min >> rhs,
+            max: self.max >> rhs,
         }
     }
 }
