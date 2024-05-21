@@ -80,11 +80,15 @@ impl<'window> GraphicsContext<'window> {
                 &wgpu::DeviceDescriptor {
                     label: None,
                     // Note web does not support POLYGON_MODE_LINE
-                    required_features: wgpu::Features::empty(),
+                    required_features: 
+                        wgpu::Features::MULTI_DRAW_INDIRECT |
+                        wgpu::Features::INDIRECT_FIRST_INSTANCE,
                     // Make sure we use the texture resolution limits from the adapter,
                     // so we can support images the size of the swapchain.
+                    #[cfg(target_arch = "wasm32")]
                     required_limits: wgpu::Limits::downlevel_webgl2_defaults()
                         .using_resolution(adapter.limits()),
+                    ..Default::default()
                 },
                 None, // Trace path
             )

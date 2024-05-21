@@ -190,6 +190,10 @@ impl Rgba {
         }
     }
 
+    pub fn with_alpha(&self, alpha: f32) -> Self {
+        Self { a: alpha, ..*self }
+    }
+
     pub fn mul_alpha(&self, alpha: f32) -> Self {
         Self {
             a: self.a * alpha,

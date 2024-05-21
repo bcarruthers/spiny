@@ -1,24 +1,39 @@
 use glam::UVec2;
 use super::Texture;
 
-struct OitBuffers {
-    accum_texture: Texture,
-    reveal_texture: Texture,
-    group: wgpu::BindGroup,
+struct OitTargetBuffers {
+    multisample_view: Option<wgpu::TextureView>,
+    texture: Texture,
 }
 
-impl OitBuffers {
-    fn create_accum(device: &wgpu::Device, size: UVec2, sample_count: u32) -> Texture {
+impl OitTargetBuffers {
+    fn create_accum(device: &wgpu::Device, size: UVec2, sample_count: u32) -> OitTargetBuffers {
         let size = wgpu::Extent3d {
             width: size.x,
             height: size.y,
             depth_or_array_layers: 1,
         };
+        let multisample_view = if sample_count > 1 {
+            let desc = wgpu::TextureDescriptor {
+                label: Some("multisample_oit_accum"),
+                size,
+                mip_level_count: 1,
+                sample_count,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Rgba16Float,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+                view_formats: &[],
+            };
+            let multisample_texture = device.create_texture(&desc);
+            Some(multisample_texture.create_view(&wgpu::TextureViewDescriptor::default()))
+        } else {
+            None
+        };
         let desc = wgpu::TextureDescriptor {
             label: Some("oit_accum"),
             size,
             mip_level_count: 1,
-            sample_count,
+            sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba16Float,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
@@ -38,26 +53,45 @@ impl OitBuffers {
             lod_max_clamp: 100.0,
             ..Default::default()
         });
-        Texture {
-            texture,
-            view,
-            sampler,
-            width: size.width,
-            height: size.height,
+        OitTargetBuffers {
+            multisample_view,
+            texture: Texture {
+                texture,
+                view,
+                sampler,
+                width: size.width,
+                height: size.height,
+            }
         }
     }
 
-    fn create_reveal(device: &wgpu::Device, size: UVec2, sample_count: u32) -> Texture {
+    fn create_reveal(device: &wgpu::Device, size: UVec2, sample_count: u32) -> OitTargetBuffers {
         let size = wgpu::Extent3d {
             width: size.x,
             height: size.y,
             depth_or_array_layers: 1,
         };
+        let multisample_view = if sample_count > 1 {
+            let desc = wgpu::TextureDescriptor {
+                label: Some("multisample_oit_reveal"),
+                size,
+                mip_level_count: 1,
+                sample_count,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::R8Unorm,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+                view_formats: &[],
+            };
+            let multisample_texture = device.create_texture(&desc);
+            Some(multisample_texture.create_view(&wgpu::TextureViewDescriptor::default()))
+        } else {
+            None
+        };
         let desc = wgpu::TextureDescriptor {
             label: Some("oit_reveal"),
             size,
             mip_level_count: 1,
-            sample_count,
+            sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::R8Unorm,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
@@ -77,59 +111,92 @@ impl OitBuffers {
             lod_max_clamp: 100.0,
             ..Default::default()
         });
-        Texture {
-            texture,
-            view,
-            sampler,
-            width: size.width,
-            height: size.height,
+        OitTargetBuffers {
+            multisample_view,
+            texture: Texture {
+                texture,
+                view,
+                sampler,
+                width: size.width,
+                height: size.height,
+            }
         }
     }
 
+    pub fn attachment(&self, clear_color: wgpu::Color) -> wgpu::RenderPassColorAttachment {
+        if let Some(multisample_view) = &self.multisample_view {
+            wgpu::RenderPassColorAttachment {
+                view: multisample_view,
+                resolve_target: Some(&self.texture.view),
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(clear_color),
+                    store: wgpu::StoreOp::Store,
+                },
+            }    
+        } else {
+            wgpu::RenderPassColorAttachment {
+                view: &self.texture.view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(clear_color),
+                    store: wgpu::StoreOp::Store,
+                },
+            }    
+        }
+    }
+}
+
+struct OitBuffers {
+    accum: OitTargetBuffers,
+    reveal: OitTargetBuffers,
+    group: wgpu::BindGroup,
+}
+
+impl OitBuffers {
     pub fn new(
         device: &wgpu::Device,
         size: UVec2,
         sample_count: u32,
         layout: &wgpu::BindGroupLayout,
     ) -> Self {
-        let accum_texture = Self::create_accum(device, size, sample_count);
-        let reveal_texture = Self::create_reveal(device, size, sample_count);
+        let accum = OitTargetBuffers::create_accum(device, size, sample_count);
+        let reveal = OitTargetBuffers::create_reveal(device, size, sample_count);
         let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&accum_texture.view),
+                    resource: wgpu::BindingResource::TextureView(&accum.texture.view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&accum_texture.sampler),
+                    resource: wgpu::BindingResource::Sampler(&accum.texture.sampler),
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
-                    resource: wgpu::BindingResource::TextureView(&reveal_texture.view),
+                    resource: wgpu::BindingResource::TextureView(&reveal.texture.view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 3,
-                    resource: wgpu::BindingResource::Sampler(&reveal_texture.sampler),
+                    resource: wgpu::BindingResource::Sampler(&reveal.texture.sampler),
                 },
             ],
             label: Some("oit_bind_group"),
         });
         Self {
-            accum_texture,
-            reveal_texture,
+            accum,
+            reveal,
             group,
         }
     }
 
-    pub fn accum_view(&self) -> &wgpu::TextureView {
-        &self.accum_texture.view
-    }
+    // pub fn accum_view(&self) -> &wgpu::TextureView {
+    //     self.accum.multisample_view.as_ref().unwrap_or(&self.accum.texture.view)
+    // }
 
-    pub fn reveal_view(&self) -> &wgpu::TextureView {
-        &self.reveal_texture.view
-    }
+    // pub fn reveal_view(&self) -> &wgpu::TextureView {
+    //     self.reveal.multisample_view.as_ref().unwrap_or(&self.reveal.texture.view)
+    // }
 
     pub fn bind_group(&self) -> &wgpu::BindGroup {
         &self.group
@@ -282,7 +349,7 @@ impl OitRenderer {
             },
             depth_stencil: None,
             multisample: wgpu::MultisampleState {
-                count: sample_count,
+                count: 1,
                 mask: !0,
                 alpha_to_coverage_enabled: false,
             },
@@ -298,25 +365,11 @@ impl OitRenderer {
     }
 
     pub fn accum_attachment(&self) -> wgpu::RenderPassColorAttachment {
-        wgpu::RenderPassColorAttachment {
-            view: &self.buffers.accum_view(),
-            resolve_target: None,
-            ops: wgpu::Operations {
-                load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.0, g: 0.0, b: 0.0, a: 0.0 } ),
-                store: wgpu::StoreOp::Store,
-            },
-        }
+        self.buffers.accum.attachment(wgpu::Color { r: 0.0, g: 0.0, b: 0.0, a: 0.0 })
     }
 
     pub fn reveal_attachment(&self) -> wgpu::RenderPassColorAttachment {
-        wgpu::RenderPassColorAttachment {
-            view: &self.buffers.reveal_view(),
-            resolve_target: None,
-            ops: wgpu::Operations {
-                load: wgpu::LoadOp::Clear(wgpu::Color { r: 1.0, g: 0.0, b: 0.0, a: 0.0 } ),
-                store: wgpu::StoreOp::Store,
-            },
-        }
+        self.buffers.reveal.attachment(wgpu::Color { r: 1.0, g: 0.0, b: 0.0, a: 0.0 })
     }
 
     pub fn resize(&mut self, device: &wgpu::Device, size: UVec2, sample_count: u32) {
