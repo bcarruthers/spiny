@@ -34,6 +34,12 @@ pub fn combine(hash: u32, value: u32) -> u32 {
     h.0
 }
 
+pub fn combine_u64(hash: u32, value: u64) -> u32 {
+    let h = combine(hash, (value & 0xffffffff) as u32);
+    let h = combine(h, (value >> 32) as u32);
+    h
+}
+
 pub fn init(seed: u32) -> u32 {
     (Wrapping(seed) + PRIME32_5).0
 }

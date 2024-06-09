@@ -3,6 +3,7 @@ use image::ImageResult;
 use crate::mipmap::MipmapGenerator;
 
 pub struct Texture {
+    pub format: wgpu::TextureFormat,
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
     pub sampler: wgpu::Sampler,
@@ -11,8 +12,6 @@ pub struct Texture {
 }
 
 impl Texture {
-    pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
-
     pub fn next_log2(n: u64) -> u32 {
         if n <= 1 {
             0
@@ -58,6 +57,7 @@ impl Texture {
         device: &wgpu::Device,
         width: u32,
         height: u32,
+        format: wgpu::TextureFormat,
         sample_count: u32,
         label: &str,
     ) -> Self {
@@ -72,7 +72,7 @@ impl Texture {
             mip_level_count: 1,
             sample_count,
             dimension: wgpu::TextureDimension::D2,
-            format: Self::DEPTH_FORMAT,
+            format,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
             view_formats: &[],
         };
@@ -91,6 +91,7 @@ impl Texture {
             ..Default::default()
         });
         Self {
+            format,
             texture,
             view,
             sampler,
@@ -146,6 +147,7 @@ impl Texture {
             ..Default::default()
         });
         Ok(Self {
+            format,
             texture,
             view,
             sampler,

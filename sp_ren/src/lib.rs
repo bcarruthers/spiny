@@ -8,7 +8,6 @@ pub mod capture;
 pub mod context;
 pub mod convert;
 pub mod instance;
-pub mod mesh;
 pub mod mipmap;
 pub mod model;
 pub mod msaa;

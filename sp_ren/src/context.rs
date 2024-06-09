@@ -73,7 +73,9 @@ impl<'window> GraphicsContext<'window> {
             .ok_or_else(|| GraphicsError {
                 message: format!("Could not create adapter for {:?}", backends),
             })?;
-        log::debug!("Created {:?}", adapter);
+        let info = adapter.get_info();
+        log::info!("Graphics: {:?}, {:?} ({}), {} {} {} {}",
+            info.backend, info.device_type, info.device, info.name, info.vendor, info.driver, info.driver_info);
 
         let (device, queue) = adapter
             .request_device(

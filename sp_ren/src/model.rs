@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use crate::binding::TextureBinding;
 use crate::camera::CameraBinding;
-use crate::instance::{Instance, InstanceRaw};
+use crate::instance::InstanceRaw;
 use crate::{texture, CameraParams, TextureAtlas};
 use glam::{Quat, Vec3};
 use indexmap::IndexMap;
@@ -288,7 +288,7 @@ impl ModelInstanceBuffer {
         let instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("model_instance_buffer"),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-            size: max_instances as u64 * std::mem::size_of::<Instance>() as u64,
+            size: max_instances as u64 * std::mem::size_of::<InstanceRaw>() as u64,
             mapped_at_creation: false,
         });
         Self {
@@ -348,6 +348,7 @@ impl ModelInstanceBuffer {
 
 pub struct ModelRenderer {
     format: wgpu::TextureFormat,
+    depth_format: wgpu::TextureFormat,
     multisample_count: u32,
     shader: wgpu::ShaderModule,
     camera_binding: CameraBinding,
@@ -360,6 +361,7 @@ impl ModelRenderer {
         device: &wgpu::Device,
         shader: wgpu::ShaderModule,
         format: wgpu::TextureFormat,
+        depth_format: wgpu::TextureFormat,
         multisample_count: u32,
         max_instances: u32,
     ) -> Self {
@@ -367,6 +369,7 @@ impl ModelRenderer {
         let instances = ModelInstanceBuffer::new(device, max_instances);
         Self {
             format,
+            depth_format,
             multisample_count,
             instances,
             shader,
@@ -379,6 +382,7 @@ impl ModelRenderer {
         device: &wgpu::Device,
         shader: &wgpu::ShaderModule,
         format: wgpu::TextureFormat,
+        depth_format: wgpu::TextureFormat,
         multisample_count: u32,
         camera_layout: &BindGroupLayout,
         key: RenderPipelineKey,
@@ -469,7 +473,7 @@ impl ModelRenderer {
                 conservative: false,
             },
             depth_stencil: Some(wgpu::DepthStencilState {
-                format: texture::Texture::DEPTH_FORMAT,
+                format: depth_format,
                 depth_write_enabled: true,
                 depth_compare: wgpu::CompareFunction::Less,
                 stencil: wgpu::StencilState::default(),
@@ -509,6 +513,7 @@ impl ModelRenderer {
                                 device,
                                 &self.shader,
                                 self.format,
+                                self.depth_format,
                                 self.multisample_count,
                                 self.camera_binding.layout(),
                                 key,

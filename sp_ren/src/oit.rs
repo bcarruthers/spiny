@@ -56,6 +56,7 @@ impl OitTargetBuffers {
         OitTargetBuffers {
             multisample_view,
             texture: Texture {
+                format: desc.format,
                 texture,
                 view,
                 sampler,
@@ -114,6 +115,7 @@ impl OitTargetBuffers {
         OitTargetBuffers {
             multisample_view,
             texture: Texture {
+                format: desc.format,
                 texture,
                 view,
                 sampler,
