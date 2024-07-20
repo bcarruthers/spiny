@@ -1,5 +1,6 @@
 use glam::*;
-use crate::*;
+
+use crate::{GamepadEvent, InputState, KeyboardEvent, ModifiersState, MouseEvent, TouchEvent};
 
 pub enum InputEvent {
     Keyboard(KeyboardEvent),

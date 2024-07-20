@@ -323,12 +323,15 @@ impl ModelInstanceBuffer {
         cull_cw: bool,
         range: Range<u32>,
     ) {
-        self.runs.push(ModelInstanceRun {
-            model_id,
-            mesh_id,
-            cull_cw,
-            range,
-        });
+        if range.start < self.max_instances {
+            let range = range.start..range.end.min(self.max_instances);
+            self.runs.push(ModelInstanceRun {
+                model_id,
+                mesh_id,
+                cull_cw,
+                range,
+            });
+        }
     }
 
     pub fn push_instance(&mut self, instance: InstanceRaw) {
@@ -442,6 +445,7 @@ impl ModelRenderer {
                     },
                     InstanceRaw::desc(),
                 ],
+                compilation_options: Default::default(),
             },
             fragment: Some(wgpu::FragmentState {
                 module: shader,
@@ -455,6 +459,7 @@ impl ModelRenderer {
                     },
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
+                compilation_options: Default::default(),
             }),
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
@@ -487,6 +492,7 @@ impl ModelRenderer {
             // If the pipeline will be used with a multiview render pass, this
             // indicates how many array layers the attachments will have.
             multiview: None,
+            cache: None,
         })
     }
 

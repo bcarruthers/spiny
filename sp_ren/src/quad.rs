@@ -42,6 +42,7 @@ impl QuadRenderer {
                 module: shader,
                 entry_point: "vs_main",
                 buffers: &[super::sprite::vertex::desc()],
+                compilation_options: Default::default(),
             },
             fragment: Some(wgpu::FragmentState {
                 module: shader,
@@ -62,6 +63,7 @@ impl QuadRenderer {
                     }),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
+                compilation_options: Default::default(),
             }),
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
@@ -84,6 +86,7 @@ impl QuadRenderer {
             // If the pipeline will be used with a multiview render pass, this
             // indicates how many array layers the attachments will have.
             multiview: None,
+            cache: None,
         });
 
         let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
