@@ -150,7 +150,7 @@ impl<'window> Renderer2d<'window> {
         output.present();
 
         // Mark the end of primary frame
-        #[cfg(tracy)]
+        #[cfg(feature = "tracy")]
         if tracy_client::Client::is_running() {
             tracy_client::frame_mark();
         }

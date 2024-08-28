@@ -168,6 +168,7 @@ pub struct RenderMesh {
     pub primitives: Vec<RenderPrimitive>,
 }
 
+#[derive(Default)]
 pub struct RenderModel {
     pub meshes: Vec<RenderMesh>,
     pub materials: Vec<Material>,
