@@ -46,7 +46,7 @@ impl InputState {
         self.keyboard.flush();
     }
 
-    pub fn apply(&mut self, event: InputEvent, size: UVec2) {
+    pub fn apply(&mut self, event: InputEvent, size: UVec2, scroll_pixel_factor: f32) {
         match event {
             InputEvent::Keyboard(event) => {
                 //log::info!("Key {:?}: {:?}", event.state, event.key);
@@ -56,7 +56,7 @@ impl InputState {
                 //log::info!("Modifiers changed: {:?}", modifiers);
                 self.keyboard.push_modifiers(modifiers)
             }
-            InputEvent::Mouse(event) => self.mouse.update(event, size),
+            InputEvent::Mouse(event) => self.mouse.update(event, size, scroll_pixel_factor),
             InputEvent::Touch(event) => self.touch.update(&event, size),
             InputEvent::Gamepad(event) => self.gamepad.update(&event),
         }

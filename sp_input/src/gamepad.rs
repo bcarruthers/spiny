@@ -53,7 +53,7 @@ impl GamepadAxis {
 #[derive(Clone, Copy, Debug)]
 pub struct GamepadCode(pub u32);
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum GamepadEventType {
     ButtonPressed(GamepadButton, GamepadCode),
     ButtonRepeated(GamepadButton, GamepadCode),
@@ -68,7 +68,7 @@ pub enum GamepadEventType {
 #[derive(Clone, Copy, Debug)]
 pub struct GamepadId(pub usize);
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct GamepadEvent {
     pub id: GamepadId,
     pub ty: GamepadEventType,

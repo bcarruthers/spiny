@@ -3,6 +3,16 @@ use serde_derive::*;
 
 use crate::press::{ElementState, PressState};
 
+#[repr(u16)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub enum MouseAxis {
+    MoveX,
+    MoveY,
+    ScrollX,
+    ScrollY,
+    Unknown,
+}
+
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 pub enum MouseButton {
     Left,
@@ -18,10 +28,15 @@ pub struct MouseButtonEvent {
     pub state: ElementState,
 }
 
+pub enum MouseScrollDelta {
+    LineDelta(Vec2),
+    PixelDelta(Vec2),
+}
+
 pub enum MouseEvent {
     CursorMoved(IVec2),
     MouseMoved(Vec2),
-    MouseWheel(Vec2),
+    MouseScroll(MouseScrollDelta),
     MouseInput(MouseButtonEvent),
 }
 
@@ -34,10 +49,20 @@ pub struct MouseState {
     norm_cursor_pos: Vec2,
     norm_cursor_delta: Vec2,
     norm_delta: Vec2,
-    wheel_delta: Vec2,
+    scroll_delta: Vec2,
 }
 
 impl MouseState {
+    pub fn axis(&self, axis: MouseAxis) -> f32 {
+        match axis {
+            MouseAxis::MoveX => self.norm_delta.x,
+            MouseAxis::MoveY => self.norm_delta.y,
+            MouseAxis::ScrollX => self.scroll_delta.x,
+            MouseAxis::ScrollY => self.scroll_delta.y,
+            MouseAxis::Unknown => 0.0,
+        }
+    }
+
     pub fn buttons(&self) -> &PressState<MouseButton> {
         &self.buttons
     }
@@ -54,8 +79,8 @@ impl MouseState {
         self.delta
     }
 
-    pub fn wheel_delta(&self) -> Vec2 {
-        self.wheel_delta
+    pub fn scroll_delta(&self) -> Vec2 {
+        self.scroll_delta
     }
 
     fn norm_pos(pos: Vec2, size: UVec2) -> Vec2 {
@@ -82,16 +107,18 @@ impl MouseState {
         self.norm_cursor_delta = Vec2::ZERO;
         self.delta = Vec2::ZERO;
         self.norm_delta = Vec2::ZERO;
-        self.wheel_delta = Vec2::ZERO;
+        self.scroll_delta = Vec2::ZERO;
     }
 
-    pub fn update(&mut self, event: MouseEvent, size: UVec2) {
+    pub fn update(&mut self, event: MouseEvent, size: UVec2, scroll_pixel_factor: f32) {
         match event {
             MouseEvent::CursorMoved(pos) => self.update_pos(pos.as_vec2(), size),
             MouseEvent::MouseMoved(delta) => self.update_delta(delta, size),
-            MouseEvent::MouseWheel(delta) => {
-                log::debug!("Mouse wheel: {:?}", delta);
-                self.wheel_delta = delta
+            MouseEvent::MouseScroll(delta) => {
+                self.scroll_delta += match delta {
+                    MouseScrollDelta::LineDelta(delta) => delta,
+                    MouseScrollDelta::PixelDelta(delta) => delta * scroll_pixel_factor,
+                }
             },
             MouseEvent::MouseInput(event) => {
                 self.buttons.apply(event.button, event.state.clone())

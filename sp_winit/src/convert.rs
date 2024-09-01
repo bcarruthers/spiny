@@ -1,5 +1,4 @@
 use glam::{IVec2, UVec2, Vec2};
-use winit::event::MouseScrollDelta;
 use sp_input::*;
 
 pub fn convert_element_state(element_state: winit::event::ElementState) -> ElementState {
@@ -227,12 +226,12 @@ pub fn convert_physical_key(key: winit::keyboard::PhysicalKey) -> KeyCode {
     }
 }
 
-fn convert_scroll_delta(delta: &MouseScrollDelta) -> Vec2 {
+fn convert_scroll_delta(delta: &winit::event::MouseScrollDelta) -> MouseScrollDelta {
     match delta {
-        MouseScrollDelta::LineDelta(dx, dy) => 
-            Vec2::new(*dx, *dy),
-        MouseScrollDelta::PixelDelta(delta) => 
-            Vec2::new(delta.x as f32, delta.y as f32),
+        winit::event::MouseScrollDelta::LineDelta(dx, dy) => 
+            MouseScrollDelta::LineDelta(Vec2::new(*dx, *dy)),
+        winit::event::MouseScrollDelta::PixelDelta(delta) => 
+            MouseScrollDelta::PixelDelta(Vec2::new(delta.x as f32, delta.y as f32)),
     }
 }
 
@@ -301,7 +300,7 @@ pub fn convert_window_event(event: &winit::event::WindowEvent) -> Option<WindowE
             device_id: _,
             delta,
             phase: _,
-        } => Some(WindowEvent::Input(InputEvent::Mouse(MouseEvent::MouseWheel(convert_scroll_delta(delta))))),
+        } => Some(WindowEvent::Input(InputEvent::Mouse(MouseEvent::MouseScroll(convert_scroll_delta(delta))))),
         winit::event::WindowEvent::MouseInput {
             device_id: _,
             state,

@@ -15,7 +15,7 @@ impl InputEvent {
         match self {
             InputEvent::Keyboard(_) |
             InputEvent::Gamepad(_) |
-            InputEvent::Mouse(MouseEvent::MouseWheel(_)) |
+            InputEvent::Mouse(MouseEvent::MouseScroll(_)) |
             InputEvent::Mouse(MouseEvent::MouseInput(_)) |
             InputEvent::Touch(_) => true,
             _ => false,
@@ -122,7 +122,7 @@ impl WindowState {
         self.clipboard_data = None;
     }
 
-    pub fn apply(&mut self, event: WindowEvent) {
+    pub fn apply(&mut self, event: WindowEvent, scroll_pixel_factor: f32) {
         match event {
             WindowEvent::Closing => self.closing = true,
             WindowEvent::Resized(size) => {
@@ -134,7 +134,7 @@ impl WindowState {
                 self.scale = scale
             }
             WindowEvent::Input(event) => {
-                self.input.apply(event, self.size);
+                self.input.apply(event, self.size, scroll_pixel_factor);
             }
             WindowEvent::PasteFromClipboard(s) => self.clipboard_data = Some(s),
             WindowEvent::FullScreenChanged(fullscreen) => self.fullscreen = fullscreen,
