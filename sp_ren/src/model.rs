@@ -282,10 +282,7 @@ pub struct ModelInstanceBuffer {
 }
 
 impl ModelInstanceBuffer {
-    pub fn new(
-        device: &wgpu::Device,
-        max_instances: u32,
-    ) -> Self {
+    pub fn new(device: &wgpu::Device, max_instances: u32) -> Self {
         let instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("model_instance_buffer"),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
@@ -390,6 +387,7 @@ impl ModelRenderer {
         multisample_count: u32,
         camera_layout: &BindGroupLayout,
         key: RenderPipelineKey,
+        lights_layout: &wgpu::BindGroupLayout,
     ) -> wgpu::RenderPipeline {
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -397,6 +395,7 @@ impl ModelRenderer {
                 bind_group_layouts: &[
                     &TextureBinding::create_layout(device, wgpu::TextureViewDimension::D2),
                     camera_layout,
+                    lights_layout,
                 ],
                 push_constant_ranges: &[],
             });
@@ -505,7 +504,14 @@ impl ModelRenderer {
         &mut self.instances
     }
 
-    pub fn update(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, cameras: &[CameraParams], models: &RenderModelCache) {
+    pub fn update(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        cameras: &[CameraParams],
+        models: &RenderModelCache,
+        lights_layout: &wgpu::BindGroupLayout,
+    ) {
         self.camera_binding.update(queue, cameras);
         self.instances.update(queue);
         // Create material pipelines
@@ -524,6 +530,7 @@ impl ModelRenderer {
                                 self.multisample_count,
                                 self.camera_binding.layout(),
                                 key,
+                                lights_layout,
                             )
                         });
                     }
@@ -532,8 +539,15 @@ impl ModelRenderer {
         }
     }
 
-    pub fn draw<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, camera_index: usize, models: &'a RenderModelCache) {
+    pub fn draw<'a>(
+        &'a self,
+        render_pass: &mut wgpu::RenderPass<'a>,
+        camera_index: usize,
+        models: &'a RenderModelCache,
+        lights_binding: &'a wgpu::BindGroup,
+    ) {
         render_pass.set_bind_group(1, &self.camera_binding.bind_group(camera_index), &[]);
+        render_pass.set_bind_group(2, lights_binding, &[]);
         render_pass.set_vertex_buffer(4, self.instances.device_buffer().slice(..));
         for run in self.instances.runs().iter() {
             if let Some(model) = models.model(run.model_id) {
