@@ -34,10 +34,12 @@ impl<T> Page<T> {
     }
 
     pub fn get(&self, i: usize) -> &T {
+        assert!(self.contains(i));
         &self.values[i]
     }
 
     pub fn get_mut(&mut self, i: usize) -> &mut T {
+        assert!(self.contains(i));
         &mut self.values[i]
     }
 
@@ -112,12 +114,13 @@ impl<T: Default> Page<T> {
     }
     
     /// Returns true if the element was removed
-    pub fn remove(&mut self, i: usize) -> bool {
+    pub fn remove(&mut self, i: usize) -> Option<T> {
         let removed = self.masks.remove(i);
         if removed {
-            self.values[i] = Default::default();
+            Some(std::mem::take(&mut self.values[i]))
+        } else {
+            None
         }
-        removed
     }
 
     /// Returns mask with bits set indicating each element removed

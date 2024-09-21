@@ -11,7 +11,7 @@ pub type TableIterMut<'a, T> = FlatPageIntoIter<PageIterMut<IterMut<'a, PageOpti
 
 pub trait WriteTable<T> {
     fn add(&mut self, id: Eid, value: T);
-    fn remove(&mut self, id: Eid) -> bool;
+    fn remove(&mut self, id: Eid) -> Option<T>;
 
     fn set(&mut self, id: Eid, value: Option<T>) {
         if let Some(value) = value {
@@ -200,6 +200,11 @@ impl<T: Default> Table<T> {
         let page = self.add_page(page_index);
         page.get_or_add_mut(index_in_page)
     }
+
+    pub fn move_value(&mut self, from: Eid, to: Eid) {
+        let value = self.remove(from);
+        self.set(to, value);
+    }
 }
 
 impl<T: Default> WriteTable<T> for Table<T> {
@@ -212,13 +217,13 @@ impl<T: Default> WriteTable<T> for Table<T> {
         page.add(index_in_page, value)
     }
 
-    fn remove(&mut self, id: Eid) -> bool {
+    fn remove(&mut self, id: Eid) -> Option<T> {
         let i: usize = id.into();
         let page_index = i >> PAGE_SIZE_POW;
         let index_in_page = i & PAGE_MASK as usize;
         match self.try_get_page_mut(page_index) {
             Some(page) => page.remove(index_in_page),
-            None => false,
+            None => None,
         }
     }
 }
@@ -324,7 +329,7 @@ mod test {
     #[test]
     fn remove_not_present() {
         let mut t = Table::<i32>::new();
-        assert_eq!(t.remove(Eid(1)), false);
+        assert_eq!(t.remove(Eid(1)), None);
         assert_eq!(t.try_get(Eid(1)), None);
     }
 

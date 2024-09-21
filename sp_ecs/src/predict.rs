@@ -232,7 +232,7 @@ impl<T: Clone + Copy + Default, D> PredictTable<T, D> {
         }
     }
 
-    pub fn remove(&mut self, eid: Eid) -> bool {
+    pub fn remove(&mut self, eid: Eid) -> Option<T> {
         if self.enable {
             self.buffers.remove(&eid);
         }
@@ -295,6 +295,15 @@ impl<T: Clone + Copy + Default, D: Delta<T> + Default> PredictTable<T, D> {
             self.buffers.retain(|_, buffer| !buffer.is_empty());
         }
     }
+
+    pub fn move_value(&mut self, from: Eid, to: Eid) {
+        if self.enable {
+            if let Some(buffer) = self.buffers.remove(&from) {
+                self.buffers.insert(to, buffer);
+            }
+        }
+        self.table.move_value(from, to)
+    }
 }
 
 pub struct PredictTableWriter<'a, T, D> {
@@ -307,7 +316,7 @@ impl<'a, T: Clone + Copy + Default, D: Delta<T> + Default> WriteTable<T> for Pre
         self.predict.add(eid, self.tick, value)
     }
 
-    fn remove(&mut self, eid: Eid) -> bool {
+    fn remove(&mut self, eid: Eid) -> Option<T> {
         self.predict.remove(eid)
     }
 }
